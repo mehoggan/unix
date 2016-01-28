@@ -14,10 +14,12 @@ missing
 stamp-h1
 test-driver
 m4/
-*.lo
 *.o
 *.la
+*.lo
+*.log
+*.trs
 **/.libs/
 **/main
 **/.deps/
-
+**/tests/check_file_system

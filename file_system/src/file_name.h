@@ -29,6 +29,52 @@
 namespace filesystem { extern "C" {
 #endif
 
+/**
+* @brief A representation of a filename.
+*/
+typedef struct {
+  char *name;
+} filename;
+
+/**
+* @brief Duplicates name param into the name member variable of a filename.
+*
+* @param name A null terminated string that represents the path.
+*
+* @pre name param will must be null terinated string.
+*
+* @post if there is sufficient memory filename will will be allocated on the
+* heap and its name member variable will be a string duplicate of name param.
+*
+* @return a filename with its name set to name param or null if there is not
+* sufficient memory.
+*/
+filename *filename_create(const char* name);
+
+/**
+* @brief A filename to be un allocated from the heap.
+*
+* @pre name param is not null.
+*
+* @post name param has its name member variable unallocated and the name param
+* is also unallocated from the heap and name param is set to NULL.
+*
+* @param name The filename to be freed.
+*/
+void filename_free(filename **name);
+
+/**
+* @brief Checks for the presence of a null character or a slash in the name
+* param.
+*
+* @param name The filename to check for validity.
+*
+* @return 0 if not valid and 1 if valid. Valid implies that '/' and '\0' are
+* not present in the name params name member variable. It also confirms that
+* the name param's name member variable is less than PATH_MAX.
+*/
+int filename_is_valid(const filename *const name);
+
 #ifdef __cplusplus
 }}
 #endif

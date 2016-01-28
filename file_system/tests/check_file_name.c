@@ -22,7 +22,63 @@
   THE SOFTWARE.
 */
 
+#include <check.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "../src/file_name.h"
+
+
+START_TEST(test_filename_create)
+{
+  filename *file = filename_create("frog");
+  ck_assert_str_eq("frog", file->name);
+  write(STDOUT_FILENO, file->name, strlen(file->name));
+  filename_free(&file);
+  ck_assert_msg(file == NULL, "one free filename should be set to null.");
+}
+END_TEST
+
+START_TEST(test_filename_is_valid)
+{
+  filename *file = filename_create("frog");
+  // Sanity check.
+  ck_assert_str_eq("frog", file->name);
+  ck_assert_int_eq(1, filename_is_valid(file));
+  filename_free(&file);
+}
+END_TEST
+
+Suite *file_system_suite(void)
+{
+  Suite *s;
+  TCase *tc_core;
+
+  s = suite_create("File System");
+  tc_core = tcase_create("Core");
+
+  // Add test cases from above between HERE ...
+  tcase_add_test(tc_core, test_filename_create);
+  tcase_add_test(tc_core, test_filename_is_valid);
+  // and HERE
+
+  suite_add_tcase(s, tc_core);
+
+  return s;
+}
+
 int main(void)
 {
-  return 0;
+  int number_failed;
+  Suite *s;
+  SRunner *sr;
+
+  s = file_system_suite();
+  sr = srunner_create(s);
+
+  srunner_run_all(sr, CK_NORMAL);
+  number_failed = srunner_ntests_failed(sr);
+
+  srunner_free(sr);
+  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

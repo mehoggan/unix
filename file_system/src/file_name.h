@@ -34,7 +34,7 @@ namespace filesystem { extern "C" {
 */
 typedef struct {
   char *name;
-} filename;
+} filename_t;
 
 /**
 * @brief Duplicates name param into the name member variable of a filename.
@@ -49,7 +49,7 @@ typedef struct {
 * @return A filename with its name set to name param or null if there is not
 * sufficient memory.
 */
-filename *filename_create(const char *name);
+filename_t *filename_create(const char *name);
 
 /**
 * @brief A filename to be un allocated on the heap.
@@ -61,7 +61,7 @@ filename *filename_create(const char *name);
 *
 * @param name The filename to be freed.
 */
-void filename_free(filename **name);
+void filename_free(filename_t **name);
 
 /**
 * @brief Checks for the presence of '\0' char or a slash in the name
@@ -73,7 +73,22 @@ void filename_free(filename **name);
 * not present in the name params name member variable. It also confirms that
 * the name param's name member variable is less than PATH_MAX.
 */
-int filename_is_valid(const filename *const name);
+int filename_is_valid(const filename_t *const name);
+
+/**
+* @brief Duplicates a filename_t (name) into a new filename_t struct.
+*
+* @param name The filename_t to duplicate.
+*
+* @pre name param is not NULL.
+*
+* @post If memory is sufficient then the return value will have a duplicate
+* of the name param's name member variable. Otherwise we will return NULL.
+*
+* @return A new filename_t struct with a duplicate name member variable
+* equivalent to the one in name parameter.
+*/
+filename_t *filename_dup(const filename_t *const name);
 
 #ifdef __cplusplus
 }}

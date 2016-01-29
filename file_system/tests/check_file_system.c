@@ -23,6 +23,7 @@
 */
 
 #include <check.h>
+#include <linux/limits.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -30,19 +31,59 @@
 
 START_TEST(test_filename_create)
 {
-  filename *file = filename_create("frog");
+  filename_t *file = filename_create("frog");
   ck_assert_str_eq("frog", file->name);
   filename_free(&file);
   ck_assert_msg(file == NULL, "one free filename should be set to null.");
+
+  // TODO: Test case where we run out of memory.
 }
 END_TEST
 
 START_TEST(test_filename_is_valid)
 {
-  filename *file = filename_create("frog");
+  filename_t *file = NULL;
+  ck_assert_msg(0 == filename_is_valid(file), "A NULL file is never valid.");
+
+  file = (filename_t *)malloc(sizeof(filename_t));
+  file->name = NULL;
+  ck_assert_msg(0 == filename_is_valid(file), "A file with a NULL name is"
+    " never valid");
+  free(file);
+  file = NULL;
+
+  // +2 for the `\0` character.
+  char buf[PATH_MAX + 2];
+  memset(buf, 'a', sizeof(buf));
+  buf[PATH_MAX + 1] = '\0'; // +1 because indexes start at 0.
+  file = filename_create(&buf[0]);
+  ck_assert_msg(0 == filename_is_valid(file), "A file over PATH_MAX is never"
+    " valid.");
+  filename_free(&file);
+
+  file = filename_create("fr/og");
+  ck_assert_str_eq("fr/og", file->name);
+  ck_assert_msg(0 == filename_is_valid(file), "A filename with a / is never"
+    " valid.");
+  filename_free(&file);
+
+  file = filename_create("frog");
   ck_assert_str_eq("frog", file->name);
   ck_assert_int_eq(1, filename_is_valid(file));
   filename_free(&file);
+}
+END_TEST
+
+START_TEST(test_filename_dup)
+{
+  filename_t *file = NULL;
+  filename_t *dup = NULL;
+
+  dup = filename_dup(file);
+  ck_assert_msg(NULL == dup, "Duplicating a NULL filename should return a"
+    " NULL duplicate");
+
+  // TODO ...
 }
 END_TEST
 
@@ -57,6 +98,7 @@ Suite *file_system_suite(void)
   // Add test cases from above between HERE ...
   tcase_add_test(tc_core, test_filename_create);
   tcase_add_test(tc_core, test_filename_is_valid);
+  tcase_add_test(tc_core, test_filename_dup);
   // and HERE
 
   suite_add_tcase(s, tc_core);

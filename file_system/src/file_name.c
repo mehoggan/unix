@@ -34,10 +34,10 @@
 namespace filesystem { extern "C" {
 #endif
 
-filename *filename_create(const char *name)
+filename_t *filename_create(const char *name)
 {
   errno = 0;
-  filename *file = (filename *)malloc(sizeof(filename));
+  filename_t *file = (filename_t *)malloc(sizeof(filename_t));
   if (errno == ENOMEM) {
     free(file);
     return NULL;
@@ -55,14 +55,14 @@ filename *filename_create(const char *name)
   return file;
 }
 
-void filename_free(filename **name)
+void filename_free(filename_t **name)
 {
   free((*name)->name);
   free(*name);
   (*name) = NULL;
 }
 
-int filename_is_valid(const filename *const name)
+int filename_is_valid(const filename_t *const name)
 {
   size_t idx;
   size_t len;
@@ -87,6 +87,32 @@ int filename_is_valid(const filename *const name)
     }
   } else {
     ret = 0;
+  }
+
+  return ret;
+}
+
+filename_t *filename_dup(const filename_t *const name)
+{
+  filename_t *ret;
+
+  ret = NULL;
+
+  if (name != NULL && name->name != NULL) {
+    errno = 0;
+    char *dup = strdup(name->name);
+    if (errno != ENOMEM) {
+      ret = (filename_t *)malloc(sizeof(filename_t));
+      if (errno == ENOMEM) {
+        free(dup);
+        free(ret);
+        ret = NULL;
+      } else {
+        ret->name = dup;
+      }
+    } else {
+      free(dup);
+    }
   }
 
   return ret;

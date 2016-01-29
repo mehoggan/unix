@@ -8,4 +8,5 @@ fi
 ../tools/autotools_clr.sh && ../tools/autotools_gen.sh && \
   export CFLAGS='-g -O0' && ./configure && make clean all check
 
-export LD_LIBRARY_PATH=`pwd`/src/.libs/ && valgrind ./tests/.libs/check_${1}
+export LD_LIBRARY_PATH=`pwd`/src/.libs/ && valgrind --leak-check=full \
+  ./tests/.libs/check_${1}

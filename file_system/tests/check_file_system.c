@@ -23,17 +23,16 @@
 */
 
 #include <check.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #include "../src/file_name.h"
 
-
 START_TEST(test_filename_create)
 {
   filename *file = filename_create("frog");
   ck_assert_str_eq("frog", file->name);
-  write(STDOUT_FILENO, file->name, strlen(file->name));
   filename_free(&file);
   ck_assert_msg(file == NULL, "one free filename should be set to null.");
 }
@@ -42,7 +41,6 @@ END_TEST
 START_TEST(test_filename_is_valid)
 {
   filename *file = filename_create("frog");
-  // Sanity check.
   ck_assert_str_eq("frog", file->name);
   ck_assert_int_eq(1, filename_is_valid(file));
   filename_free(&file);
@@ -76,6 +74,7 @@ int main(void)
   s = file_system_suite();
   sr = srunner_create(s);
 
+  srunner_set_fork_status(sr, CK_NOFORK);
   srunner_run_all(sr, CK_NORMAL);
   number_failed = srunner_ntests_failed(sr);
 

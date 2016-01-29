@@ -8,3 +8,7 @@ libfile_system_la_SOURCES = \
 bin_PROGRAMS = main
 main_SOURCES = main.c
 main_LDADD = libfile_system.la
+
+CLEANFILES = *.o
+CLEANDIRS = deps/ \
+	.lib/

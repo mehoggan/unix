@@ -39,32 +39,32 @@ typedef struct {
 /**
 * @brief Duplicates name param into the name member variable of a filename.
 *
-* @param name A null terminated string that represents the path.
+* @param name A NULL terminated string that represents the path.
 *
-* @pre name param will must be null terinated string.
+* @pre name param must be NULL terinated string.
 *
-* @post if there is sufficient memory filename will will be allocated on the
+* @post If there is sufficient memory filename will will be allocated on the
 * heap and its name member variable will be a string duplicate of name param.
 *
-* @return a filename with its name set to name param or null if there is not
+* @return A filename with its name set to name param or null if there is not
 * sufficient memory.
 */
 filename *filename_create(const char *name);
 
 /**
-* @brief A filename to be un allocated from the heap.
+* @brief A filename to be un allocated on the heap.
 *
-* @pre name param is not null.
+* @pre name param is not NULL.
 *
 * @post name param has its name member variable unallocated and the name param
-* is also unallocated from the heap and name param is set to NULL.
+* is also unallocated on the heap and name param is set to NULL.
 *
 * @param name The filename to be freed.
 */
 void filename_free(filename **name);
 
 /**
-* @brief Checks for the presence of a null character or a slash in the name
+* @brief Checks for the presence of '\0' char or a slash in the name
 * param.
 *
 * @param name The filename to check for validity.

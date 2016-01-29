@@ -3,7 +3,8 @@
 array=(rm -rf autom4te.cache/ config.h.in ./configure COPYING depcomp \
   INSTALL ltmain.sh ./config.guess config.sub aclocal.m4 ./test-driver \
   compile install-sh missing Makefile.in config.h config.log config.status \
-  libtool Makefile stamp-h1 ar-lib $(find . -name Makefile.in))
+  libtool Makefile stamp-h1 ar-lib $(find . -name Makefile.in) \
+  $(find . -name Makefile))
 
 for i in ${array[@]}; do
   rm -rf ${i};

@@ -22,8 +22,7 @@
   THE SOFTWARE.
 */
 
-#include "file_name.h"
-#include "path_name.h"
+#include "filename.h"
 
 int main(void)
 {

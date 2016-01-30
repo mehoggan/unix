@@ -48,6 +48,13 @@ START_TEST(test_filename_ptr_create)
   filename_ptr_free(&file);
   ck_assert_msg(file == NULL, "Free'g a filename_t* should be set to NULL.");
 
+  file = filename_ptr_create(NULL);
+  ck_assert_msg(file->name == NULL, "Creating a NULL filename_t * with an NULL"
+    " name is valid");
+  filename_ptr_free(&file);
+  ck_assert_msg(file == NULL, "Though its name was NULL we still need to free"
+    " a filename_t ptr.");
+
   // TODO: Test case where we run out of memory.
 }
 END_TEST
@@ -119,17 +126,18 @@ START_TEST(test_filename_ptr_dup)
   ck_assert_msg(NULL == dup, "Duplicating a filename_t * that is NULL shall"
     " return a filename_t * that is NULL");
 
+  file = filename_ptr_create(NULL);
+  dup = filename_ptr_dup(file);
+  ck_assert_msg(dup != NULL, "We just duplicated a filename with no name.");
+  ck_assert_msg(dup->name == NULL, "Creating a file with a NULL name, then"
+    "duplicating it shall return a filename with a NULL name too.");
+  filename_ptr_free(&file);
+  filename_ptr_free(&dup);
+
   file = filename_ptr_create("frog");
   dup = filename_ptr_dup(file);
   ck_assert_str_eq("frog", dup->name);
   ck_assert_str_eq(file->name, dup->name);
-  filename_ptr_free(&file);
-  filename_ptr_free(&dup);
-
-  file = filename_ptr_create(NULL);
-  dup = filename_ptr_dup(file);
-  ck_assert_msg(file->name == NULL, "Creating a file with a NULL name, then"
-    "duplicating it shall return a filename with a NULL name too.");
   filename_ptr_free(&file);
   filename_ptr_free(&dup);
 }

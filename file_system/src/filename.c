@@ -39,12 +39,14 @@ filename_t filename_create(const char *name)
   filename_t ret;
   ret.name = NULL;
 
-  errno = 0;
-  char *dup = strdup(name);
-  if (errno == ENOMEM) {
-    free(dup);
-  } else {
-    ret.name = dup;
+  if (name != NULL) {
+    errno = 0;
+    char *dup = strdup(name);
+    if (errno == ENOMEM) {
+      free(dup);
+    } else {
+      ret.name = dup;
+    }
   }
 
   return ret;
@@ -53,22 +55,25 @@ filename_t filename_create(const char *name)
 filename_t *filename_ptr_create(const char *name)
 {
   errno = 0;
-  filename_t *file = (filename_t *)malloc(sizeof(filename_t));
+  filename_t *ret = (filename_t *)malloc(sizeof(filename_t));
   if (errno == ENOMEM) {
-    free(file);
+    free(ret);
     return NULL;
   }
+  ret->name = NULL;
 
-  errno = 0;
-  char *dup = strdup(name);
-  if (errno == ENOMEM) {
-    free(dup);
-    free(file);
-    return NULL;
+  if (name != NULL) {
+    errno = 0;
+    char *dup = strdup(name);
+    if (errno == ENOMEM) {
+      free(dup);
+      free(ret);
+      return NULL;
+    }
+    ret->name = dup;
   }
-  file->name = dup;
 
-  return file;
+  return ret;
 }
 
 void filename_free(filename_t *name)
@@ -136,23 +141,27 @@ filename_t *filename_ptr_dup(const filename_t *const name)
 {
   filename_t *ret;
 
-  ret = NULL;
+  if (name == NULL) {
+    return NULL;
+  }
 
-  if (name != NULL && name->name != NULL) {
+  errno = 0;
+  ret = (filename_t *)malloc(sizeof(filename_t));
+  if (errno == ENOMEM) {
+    free(ret);
+    return NULL;
+  }
+  ret->name = NULL;
+
+  if (name->name != NULL) {
     errno = 0;
     char *dup = strdup(name->name);
-    if (errno != ENOMEM) {
-      ret = (filename_t *)malloc(sizeof(filename_t));
-      if (errno == ENOMEM) {
-        free(dup);
-        free(ret);
-        ret = NULL;
-      } else {
-        ret->name = dup;
-      }
-    } else {
+    if (errno == ENOMEM) {
+      free(ret);
       free(dup);
+      return NULL;
     }
+    ret->name = dup;
   }
 
   return ret;

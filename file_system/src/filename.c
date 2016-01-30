@@ -22,7 +22,7 @@
   THE SOFTWARE.
 */
 
-#include "file_name.h"
+#include "filename.h"
 
 #include <errno.h>
 #include <linux/limits.h>
@@ -34,7 +34,23 @@
 namespace filesystem { extern "C" {
 #endif
 
-filename_t *filename_create(const char *name)
+filename_t filename_create(const char *name)
+{
+  filename_t ret;
+  ret.name = NULL;
+
+  errno = 0;
+  char *dup = strdup(name);
+  if (errno == ENOMEM) {
+    free(dup);
+  } else {
+    ret.name = dup;
+  }
+
+  return ret;
+}
+
+filename_t *filename_ptr_create(const char *name)
 {
   errno = 0;
   filename_t *file = (filename_t *)malloc(sizeof(filename_t));
@@ -55,7 +71,13 @@ filename_t *filename_create(const char *name)
   return file;
 }
 
-void filename_free(filename_t **name)
+void filename_free(filename_t *name)
+{
+  free(name->name);
+  name->name = NULL;
+}
+
+void filename_ptr_free(filename_t **name)
 {
   free((*name)->name);
   free(*name);
@@ -92,7 +114,25 @@ int filename_is_valid(const filename_t *const name)
   return ret;
 }
 
-filename_t *filename_dup(const filename_t *const name)
+filename_t filename_dup(const filename_t *const name)
+{
+  filename_t ret;
+  ret.name = NULL;
+
+  if (name != NULL && name->name != NULL) {
+    errno = 0;
+    char *dup = strdup(name->name);
+    if (errno == ENOMEM) {
+      free(dup);
+    } else {
+      ret.name = dup;
+    }
+  }
+
+  return ret;
+}
+
+filename_t *filename_ptr_dup(const filename_t *const name)
 {
   filename_t *ret;
 

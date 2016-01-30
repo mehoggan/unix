@@ -27,14 +27,26 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../src/file_name.h"
+#include "../src/filename.h"
 
 START_TEST(test_filename_create)
 {
-  filename_t *file = filename_create("frog");
-  ck_assert_str_eq("frog", file->name);
+  filename_t file = filename_create("frog");
+  ck_assert_str_eq("frog", file.name);
   filename_free(&file);
-  ck_assert_msg(file == NULL, "one free filename should be set to null.");
+  ck_assert_msg(file.name == NULL, "Fee'g a filename_t should have its"
+    " member variables unallocated");
+
+  // TODO: Test case where we run out of memory.
+}
+END_TEST
+
+START_TEST(test_filename_ptr_create)
+{
+  filename_t *file = filename_ptr_create("frog");
+  ck_assert_str_eq("frog", file->name);
+  filename_ptr_free(&file);
+  ck_assert_msg(file == NULL, "Free'g a filename_t* should be set to NULL.");
 
   // TODO: Test case where we run out of memory.
 }
@@ -56,34 +68,70 @@ START_TEST(test_filename_is_valid)
   char buf[PATH_MAX + 2];
   memset(buf, 'a', sizeof(buf));
   buf[PATH_MAX + 1] = '\0'; // +1 because indexes start at 0.
-  file = filename_create(&buf[0]);
+  file = filename_ptr_create(&buf[0]);
   ck_assert_msg(0 == filename_is_valid(file), "A file over PATH_MAX is never"
     " valid.");
-  filename_free(&file);
+  filename_ptr_free(&file);
 
-  file = filename_create("fr/og");
+  file = filename_ptr_create("fr/og");
   ck_assert_str_eq("fr/og", file->name);
   ck_assert_msg(0 == filename_is_valid(file), "A filename with a / is never"
     " valid.");
-  filename_free(&file);
+  filename_ptr_free(&file);
 
-  file = filename_create("frog");
+  file = filename_ptr_create("frog");
   ck_assert_str_eq("frog", file->name);
   ck_assert_int_eq(1, filename_is_valid(file));
-  filename_free(&file);
+  filename_ptr_free(&file);
 }
 END_TEST
 
 START_TEST(test_filename_dup)
 {
-  filename_t *file = NULL;
-  filename_t *dup = NULL;
+  filename_t file;
+  file.name = NULL;
 
-  dup = filename_dup(file);
-  ck_assert_msg(NULL == dup, "Duplicating a NULL filename should return a"
-    " NULL duplicate");
+  filename_t dup = filename_dup(&file);
+  ck_assert_msg(NULL == dup.name, "Duplicating a filename that has not been"
+    " properly created should return a filename_t with a NULL name");
 
-  // TODO ...
+  file = filename_create("frog");
+  dup = filename_dup(&file);
+  ck_assert_str_eq("frog", dup.name);
+  ck_assert_str_eq(file.name, dup.name);
+  filename_free(&file);
+  filename_free(&dup);
+
+  filename_t *fileptr = NULL;
+  dup = filename_dup(fileptr);
+  ck_assert_msg(NULL == dup.name, "Duplicating a filename_t * that is NULL"
+    " shall return a filename_t whoes member variable name is NULL too.");
+}
+END_TEST
+
+START_TEST(test_filename_ptr_dup)
+{
+  filename_t *file;
+  filename_t *dup;
+
+  file = NULL;
+  dup = filename_ptr_dup(file);
+  ck_assert_msg(NULL == dup, "Duplicating a filename_t * that is NULL shall"
+    " return a filename_t * that is NULL");
+
+  file = filename_ptr_create("frog");
+  dup = filename_ptr_dup(file);
+  ck_assert_str_eq("frog", dup->name);
+  ck_assert_str_eq(file->name, dup->name);
+  filename_ptr_free(&file);
+  filename_ptr_free(&dup);
+
+  file = filename_ptr_create(NULL);
+  dup = filename_ptr_dup(file);
+  ck_assert_msg(file->name == NULL, "Creating a file with a NULL name, then"
+    "duplicating it shall return a filename with a NULL name too.");
+  filename_ptr_free(&file);
+  filename_ptr_free(&dup);
 }
 END_TEST
 
@@ -97,8 +145,10 @@ Suite *file_system_suite(void)
 
   // Add test cases from above between HERE ...
   tcase_add_test(tc_core, test_filename_create);
+  tcase_add_test(tc_core, test_filename_ptr_create);
   tcase_add_test(tc_core, test_filename_is_valid);
   tcase_add_test(tc_core, test_filename_dup);
+  tcase_add_test(tc_core, test_filename_ptr_dup);
   // and HERE
 
   suite_add_tcase(s, tc_core);

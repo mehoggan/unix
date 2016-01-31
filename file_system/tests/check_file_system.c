@@ -143,6 +143,101 @@ START_TEST(test_filename_ptr_dup)
 }
 END_TEST
 
+START_TEST(test_filename_app)
+{
+  filename_t file;
+
+  // Just to check for crashes. No actual unit test.
+  filename_app(NULL, "frog");
+
+  file = filename_create("frog");
+
+  filename_app(&file, NULL);
+  ck_assert_str_eq("frog", file.name);
+  filename_app(&file, ".ext");
+  ck_assert_str_eq("frog.ext", file.name);
+
+  filename_free(&file);
+}
+END_TEST
+
+START_TEST(test_filename_ptr_app)
+{
+  filename_t *file;
+
+  file = filename_ptr_create("frog");
+
+  filename_ptr_app(&file, ".ext");
+  ck_assert_str_eq("frog.ext", file->name);
+  filename_ptr_free(&file);
+}
+END_TEST
+
+START_TEST(test_filename_has_extension)
+{
+  filename_t file;
+
+  file.name = NULL;
+
+  ck_assert_int_eq(0, filename_has_extension(NULL));
+  ck_assert_int_eq(0, filename_has_extension(&file));
+
+  file = filename_create("frog");
+  ck_assert_int_eq(0, filename_has_extension(&file));
+  filename_free(&file);
+
+  file = filename_create("..out");
+  ck_assert_int_eq(1, filename_has_extension(&file));
+  filename_free(&file);
+
+  file = filename_create("frog.1out");
+  ck_assert_int_eq(0, filename_has_extension(&file));
+  filename_free(&file);
+
+  file = filename_create("frog.");
+  ck_assert_int_eq(0, filename_has_extension(&file));
+  filename_free(&file);
+
+  file = filename_create("frog.text");
+  ck_assert_int_eq(1, filename_has_extension(&file));
+  filename_free(&file);
+
+  file = filename_create("frog.te");
+  ck_assert_int_eq(0, filename_has_extension(&file));
+  filename_free(&file);
+
+  file = filename_create(".txt");
+  ck_assert_int_eq(0, filename_has_extension(&file));
+  filename_free(&file);
+}
+END_TEST
+
+START_TEST(test_filename_get_extension)
+{
+  filename_t file;
+  char *ext;
+
+  ext = filename_get_extension(NULL);
+  ck_assert_msg(ext == NULL, "A NULL filename_t has no extension.");
+
+  file.name = NULL;
+  ext = filename_get_extension(&file);
+  ck_assert_msg(ext == NULL, "A filename_t with NULL name has no extension.");
+
+  file = filename_create("frog.1txt");
+  ext = filename_get_extension(&file);
+  ck_assert_msg(ext == NULL, "Invalid extension will return NULL extension.");
+  filename_free(&file);
+
+  file = filename_create("frog.txt");
+  ext = filename_get_extension(&file);
+  ck_assert_str_eq(".txt", ext);
+  ck_assert_int_eq(4, strlen(ext));
+  free(ext);
+  filename_free(&file);
+}
+END_TEST
+
 Suite *file_system_suite(void)
 {
   Suite *s;
@@ -151,13 +246,20 @@ Suite *file_system_suite(void)
   s = suite_create("File System");
   tc_core = tcase_create("Core");
 
-  // Add test cases from above between HERE ...
+  // Test cases for filename_t start HERE ...
   tcase_add_test(tc_core, test_filename_create);
   tcase_add_test(tc_core, test_filename_ptr_create);
   tcase_add_test(tc_core, test_filename_is_valid);
   tcase_add_test(tc_core, test_filename_dup);
   tcase_add_test(tc_core, test_filename_ptr_dup);
-  // and HERE
+  tcase_add_test(tc_core, test_filename_app);
+  tcase_add_test(tc_core, test_filename_ptr_app);
+  tcase_add_test(tc_core, test_filename_has_extension);
+  tcase_add_test(tc_core, test_filename_get_extension);
+  // end HERE
+
+  // Test cases for pathname_t start HERE ...
+  // end HERE
 
   suite_add_tcase(s, tc_core);
 

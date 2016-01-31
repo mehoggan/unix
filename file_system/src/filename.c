@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <linux/limits.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +43,7 @@ filename_t filename_create(const char *name)
   if (name != NULL) {
     errno = 0;
     char *dup = strdup(name);
-    if (errno == ENOMEM) {
+    if (!dup || errno == ENOMEM) {
       free(dup);
     } else {
       ret.name = dup;
@@ -55,25 +56,25 @@ filename_t filename_create(const char *name)
 filename_t *filename_ptr_create(const char *name)
 {
   errno = 0;
-  filename_t *ret = (filename_t *)malloc(sizeof(filename_t));
-  if (errno == ENOMEM) {
+  void *ret = malloc(sizeof(filename_t));
+  if (!ret || errno == ENOMEM) {
     free(ret);
     return NULL;
   }
-  ret->name = NULL;
+  ((filename_t *)ret)->name = NULL;
 
   if (name != NULL) {
     errno = 0;
     char *dup = strdup(name);
-    if (errno == ENOMEM) {
+    if (!dup || errno == ENOMEM) {
       free(dup);
       free(ret);
       return NULL;
     }
-    ret->name = dup;
+    ((filename_t *)ret)->name = dup;
   }
 
-  return ret;
+  return (filename_t *)ret;
 }
 
 void filename_free(filename_t *name)
@@ -100,10 +101,9 @@ int filename_is_valid(const filename_t *const name)
     len = strlen(name->name);
     if (len <= PATH_MAX) {
       for (idx = 0; idx < len; ++idx) {
-        // By definition a "c" string cannot contain the '\0' other than at the
-        // end of it. However, the the strlen function will prevent the '\0'
-        // from being found. Perhaps we could force the user to pass in a length
-        // if needed.
+        // By definition a "c" string cannot contain the '\0' other than at
+        // the end of it. However, the the strlen function will prevent the
+        // '\0' from being found. Perhaps we could force the user to pass in a        // length if needed.
         if (name->name[idx] == '/' || name->name[idx] == '\0') {
           ret = 0;
           break;
@@ -127,7 +127,7 @@ filename_t filename_dup(const filename_t *const name)
   if (name != NULL && name->name != NULL) {
     errno = 0;
     char *dup = strdup(name->name);
-    if (errno == ENOMEM) {
+    if (!dup || errno == ENOMEM) {
       free(dup);
     } else {
       ret.name = dup;
@@ -139,29 +139,137 @@ filename_t filename_dup(const filename_t *const name)
 
 filename_t *filename_ptr_dup(const filename_t *const name)
 {
-  filename_t *ret;
+  void *ret;
 
-  if (name == NULL) {
+  if (!name) {
     return NULL;
   }
 
   errno = 0;
-  ret = (filename_t *)malloc(sizeof(filename_t));
-  if (errno == ENOMEM) {
+  ret = malloc(sizeof(filename_t));
+  if (!ret || errno == ENOMEM) {
     free(ret);
     return NULL;
   }
-  ret->name = NULL;
+  ((filename_t *)ret)->name = NULL;
 
   if (name->name != NULL) {
     errno = 0;
     char *dup = strdup(name->name);
-    if (errno == ENOMEM) {
+    if (!dup || errno == ENOMEM) {
       free(ret);
       free(dup);
       return NULL;
     }
-    ret->name = dup;
+    ((filename_t *)ret)->name = dup;
+  }
+
+  return ret;
+}
+
+void filename_app(filename_t *name, const char *app)
+{
+  void *tmp = NULL;
+
+  if (!name || !(name->name) || !app) {
+    return;
+  }
+
+  size_t name_bytes_cnt = strlen(name->name);
+  size_t app_bytes_cnt = strlen(app);
+  size_t new_bytes_cnt = name_bytes_cnt + app_bytes_cnt + sizeof(char);
+
+  errno = 0;
+  tmp = realloc((void *)name->name, new_bytes_cnt);
+  if (!tmp || errno == ENOMEM) {
+    free(tmp);
+    return;
+  }
+
+  tmp = strcat(tmp, app);
+  name->name = tmp;
+}
+
+void filename_ptr_app(filename_t **name, const char *app)
+{
+  void *tmp;
+
+  if (!name || !(*name) || !((*name)->name) || !app) {
+    return;
+  }
+
+  size_t name_bytes_cnt = strlen((*name)->name);
+  size_t app_bytes_cnt = strlen(app);
+  size_t new_bytes_cnt = name_bytes_cnt + app_bytes_cnt + sizeof(char);
+
+  errno = 0;
+  tmp = realloc((void *)(*name)->name, new_bytes_cnt);
+  if (!tmp || errno == ENOMEM) {
+    free(tmp);
+    return;
+  }
+
+  tmp = strcat(tmp, app);
+  (*name)->name = tmp;
+}
+
+int filename_has_extension(const filename_t *const name)
+{
+  size_t len;
+  int idx;
+  int jdx;
+  const char *curr;
+  ptrdiff_t diff;
+
+  if (!name || !(name->name)) {
+    return 0;
+  }
+
+  const char *dot = strrchr(name->name, '.');
+  if (!dot || dot == name->name) {
+    return 0;
+  }
+
+  diff = &(name->name[strlen(name->name)]) - dot;
+  if (diff >= 1 && diff <= 3) {
+    return 0;
+  }
+
+  curr = dot + 1;
+  while (*curr != '\0') {
+    if (*curr > 'Z' && *curr < 'a') {
+      return 0;
+    } else if (*curr < 'A' || *curr > 'z') {
+      return 0;
+    }
+    ++curr;
+  }
+
+  return 1;
+}
+
+char *filename_get_extension(const filename_t *const name)
+{
+  void *ret;
+  size_t len;
+  int idx;
+  ptrdiff_t diff;
+
+  if (!filename_has_extension(name)) {
+    return NULL;
+  }
+
+  // No check on dot because filename_has_extension already verified this.
+  const char *dot = strrchr(name->name, '.');
+  diff = &(name->name[strlen(name->name)]) - dot;
+  ret = NULL;
+  errno = 0;
+  ret = malloc(diff * sizeof(char) + sizeof(char));
+  if (!ret || errno == ENOMEM) {
+    free(ret);
+    ret = NULL;
+  } else {
+    strcpy(ret, dot);
   }
 
   return ret;

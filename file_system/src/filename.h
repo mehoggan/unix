@@ -122,6 +122,47 @@ filename_t filename_dup(const filename_t *const name);
 */
 filename_t *filename_ptr_dup(const filename_t *const name);
 
+/**
+* @brief Appends app parameter to the name meber variable of name parameter.
+*
+* @param name The filename_t to append app parameter to.
+* @param app The c-string to append to name parameter's name member variable.
+*/
+void filename_app(filename_t *name, const char *app);
+
+/**
+* @brief Appends app parameter to the name member variable of the name
+* parameter.
+*
+* @param name The filename_t to append app parameter to.
+* @param app The c-string to append to name parameter's name member variable.
+*/
+void filename_ptr_app(filename_t **name, const char *app);
+
+/**
+* @brief Checks for the presence of the last '.' followed by 1 or more
+* characters in the set [a-zA-Z] repeated 3 to 4 times. e.g. file.txt or
+* file.exe or file.text etc.
+*
+* @param name The filename_t to search for.
+*
+* @return 1 if the filename_t's name member variable has a valid file extension
+* or 0 if it does not.
+*/
+int filename_has_extension(const filename_t *const name);
+
+/**
+* @brief  Get a valid file extension from a filename_t. A valid extension is
+* defined as the last '.' followed by 1 or more characters in the set [a-zA-Z]
+* repeated 3 to 4 times. e.g. file.txt's extension would be '.txt'
+*
+* @param name The filename_t to get extension from.
+*
+* @return A malloc'd c-string to be freed by client code. Or a NULL string if
+* a valid file extension not found.
+*/
+char *filename_get_extension(const filename_t *const name);
+
 #ifdef __cplusplus
 }}
 #endif

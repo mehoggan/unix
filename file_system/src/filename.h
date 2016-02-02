@@ -22,8 +22,8 @@
   THE SOFTWARE.
 */
 
-#ifndef FILE_NAME_H
-#define FILE_NAME_H
+#ifndef FILENAME_H
+#define FILENAME_H
 
 #ifdef __cplusplus
 namespace filesystem { extern "C" {
@@ -37,8 +37,8 @@ typedef struct {
 } filename_t;
 
 /**
-* @brief Duplicates name param int the name member variable of a filename_t and
-* returns a filename_t on the stack by value.
+* @brief Duplicates name param into the name member variable of a filename_t
+* and returns a filename_t on the stack by value.
 *
 * @param name A NULL terminated string that represents the path.
 *
@@ -167,4 +167,4 @@ char *filename_get_extension(const filename_t *const name);
 }}
 #endif
 
-#endif//FILE_NAME_H
+#endif//FILENAME_H

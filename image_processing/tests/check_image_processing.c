@@ -27,6 +27,26 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "../src/image_processing.h"
+
+START_TEST(check_parse_args)
+{
+  int argc;
+
+  {
+    char *argv[] = {};
+    argc = sizeof(argv) / sizeof(argv[1]);
+    ck_assert_int_eq(-1, parse_args(argc, argv));
+  }
+
+  {
+    char *argv[] = {"-f"};
+    argc = sizeof(argv) / sizeof(argv[1]);
+    ck_assert_int_eq(-1, parse_args(argc, argv));
+  }
+}
+END_TEST
+
 Suite *image_processing_suite(void)
 {
   Suite *s;
@@ -35,11 +55,7 @@ Suite *image_processing_suite(void)
   s = suite_create("Image Processing");
   tc_core = tcase_create("Core");
 
-  // Test cases for filename_t start HERE ...
-  // end HERE
-
-  // Test cases for pathname_t start HERE ...
-  // end HERE
+  tcase_add_test(tc_core, check_parse_args);
 
   suite_add_tcase(s, tc_core);
 

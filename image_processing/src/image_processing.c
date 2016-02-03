@@ -29,13 +29,14 @@
 #include <unistd.h>
 
 #include "image_processing.h"
+#include "version_num.h"
 
 #ifdef __cplusplus
 namespace image_processing { extern "C" {
 #endif
 
 void
-print_help()
+handle_help_option()
 {
   size_t len;
 
@@ -49,7 +50,7 @@ print_help()
     exit(-1);
   }
 
-  const char *directory_string = "  -d --directory"
+  const char *directory_string = "  -d --directory <arg>"
     "    Absolute or relative path to a directory which contains\n"
     "                    images that need to be processed.\n";
   len = strlen(directory_string) + sizeof(char);
@@ -59,7 +60,7 @@ print_help()
     exit(-1);
   }
 
-  const char *file_string = "  -f --file"
+  const char *file_string = "  -f --file <arg>"
     "         Absolute or relative path to a file which contains \n"
     "                    an image that needs to be processed.\n";
   len = strlen(file_string) + sizeof(char);
@@ -69,7 +70,7 @@ print_help()
     exit(-1);
   }
 
-  const char *output_string = "  -o --output"
+  const char *output_string = "  -o --output <arg>"
     "       Absolute or relative path to a directory where output\n"
     "                    of processing should be put.\n";
   len = strlen(output_string) + sizeof(char);
@@ -78,41 +79,115 @@ print_help()
     strerror(errno);
     exit(-1);
   }
+  exit(0);
 }
 
 void
-print_version()
+handle_version_option()
 {
   size_t len;
+  size_t elem;
 
-  // TODO: Get version number
-  const char *version_string = "GNU image_processing 1.0\n"
+  const char* parts[] = {
+    "GNU image_processing ",
+    IMAGE_PROCESSING_VERSION_NUM,
+    "\n",
     "Copyright (C) 2016 Free Software Foundation, Inc.\n"
     "License MIT: <https://opensource.org/licenses/MIT>\n"
     "This is free software: you are free to change and redistribute it.\n"
-    "There is NO WARRANTY, to the exnent permitted by law.\n";
+    "There is NO WARRANTY, to the exnent permitted by law.\n"};
 
-  len = strlen(version_string) + sizeof(char);
-  errno = 0;
-  if (write(STDOUT_FILENO, version_string, len) == -1) {
-    strerror(errno);
-    exit(-1);
+  for (elem = 0; elem < sizeof(parts) / sizeof(parts[0]); ++elem) {
+    len = strlen(parts[elem]) + sizeof(char);
+    errno = 0;
+    if (write(STDOUT_FILENO, parts[elem], len) == -1) {
+      strerror(errno);
+      exit(-1);
+    }
+    if (write(STDOUT_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
+      strerror(errno);
+      exit(-1);
+    }
   }
+  exit(0);
+}
+
+int // -1 on failure
+handle_file_option(const char *optarg)
+{
+  size_t len;
+
+  if (optarg && strcmp(optarg, "") != 0) {
+    errno = 0;
+    len = strlen(optarg) + sizeof(char);
+    if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
+      strerror(errno);
+      exit(-1);
+    }
+    if (write(STDOUT_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
+      strerror(errno);
+      exit(-1);
+    }
+    return 0;
+  }
+
+  return -1;
+}
+
+int // -1 on failure
+handle_directory_option(const char *optarg)
+{
+  size_t len;
+
+  if (optarg && strcmp(optarg, "") != 0) {
+    errno = 0;
+    len = strlen(optarg) + sizeof(char);
+    if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
+      strerror(errno);
+      exit(-1);
+    }
+    return 0;
+  }
+
+  return -1;
+}
+
+int // -1 on failure
+handle_output_option(const char *optarg)
+{
+  size_t len;
+
+  if (optarg && strcmp(optarg, "") != 0) {
+    errno = 0;
+    len = strlen(optarg) + sizeof(char);
+    if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
+      strerror(errno);
+      exit(-1);
+    }
+    return 0;
+  }
+
+  return -1;
 }
 
 int
 application_specific_argparse()
 {
-  int ret;
-
-  return ret;
+  return -1;
 }
 
 int
 parse_args(int argc, char *argv[])
 {
-  int ret; // Return value of function. -1 implies failure.
   int opt; // Used by getopt(3) family of functions below.
+  size_t byte_count;
+
+  if (argc <= 1) {
+    const char *err_str = "";
+    byte_count = strlen(err_str) + sizeof(char);
+    if (write(STDERR_FILENO, err_str, byte_count) == -1) {
+    }
+  }
 
   /*
     A string containing the legitimate option characters. If such a character
@@ -178,34 +253,37 @@ parse_args(int argc, char *argv[])
 
     switch (opt) {
     case 0: { // Special case for version above. -v saved for verbose
-      print_version();
-      exit(0);
-    }
-      break;
-    case 'd': { // User specified directory.
-      ret = -1;
+      handle_version_option();
     }
       break;
     case 'f': { // User specified file.
-      ret = -1;
+      if (handle_file_option(optarg) == -1) {
+        return -1;
+      }
+    }
+      break;
+    case 'd': { // User specified directory.
+      if (handle_directory_option(optarg) == -1) {
+        return -1;
+      }
     }
       break;
     case 'o': { // User specified output.
-      ret = -1;
+      if (handle_output_option(optarg) == -1) {
+        return -1;
+      }
     }
       break;
     case 'h': { // User specified help.
-      print_help();
-      exit(0);
+      handle_help_option();
     }
-      break;
     default: { // '?' Unknow argument.
-      ret = -1;
+      return -1;
     }
     }
   }
 
-  return ret;
+  return 0;
 }
 
 #ifdef __cplusplus

@@ -36,13 +36,13 @@ START_TEST(check_parse_args)
   {
     char *argv[] = {};
     argc = sizeof(argv) / sizeof(argv[1]);
-    ck_assert_int_eq(-1, parse_args(argc, argv));
+    ck_assert_int_eq(-1, argparse(argc, argv));
   }
 
   {
-    char *argv[] = {"-f"};
+    char *argv[] = {};
     argc = sizeof(argv) / sizeof(argv[1]);
-    ck_assert_int_eq(-1, parse_args(argc, argv));
+    ck_assert_int_eq(-1, argparse(argc, argv));
   }
 }
 END_TEST

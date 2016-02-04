@@ -36,9 +36,9 @@ namespace image_processing { extern "C" {
  * @param argc The number of args in argv
  * @param argv[] An array of c-strings representing arguments.
  *
- * @return Anything but -1 for success, or -1 on failure.
+ * @return 0 for success, or -1 on failure.
  */
-int parse_args(int argc, char *argv[]);
+int argparse(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }}

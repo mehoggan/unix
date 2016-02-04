@@ -23,9 +23,12 @@
 */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "image_processing.h"
@@ -79,7 +82,6 @@ handle_help_option()
     strerror(errno);
     exit(-1);
   }
-  exit(0);
 }
 
 void
@@ -116,22 +118,20 @@ int // -1 on failure
 handle_file_option(const char *optarg)
 {
   size_t len;
+  int fd;
 
-  if (optarg && strcmp(optarg, "") != 0) {
-    errno = 0;
-    len = strlen(optarg) + sizeof(char);
-    if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
-      strerror(errno);
-      exit(-1);
-    }
-    if (write(STDOUT_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
-      strerror(errno);
-      exit(-1);
-    }
-    return 0;
+  if (!optarg || strcmp(optarg, "") == 0) {
+    handle_help_option();
+    return -1;
   }
 
-  return -1;
+  errno = 0;
+  if ((fd = open(optarg, O_RDONLY)) == -1) {
+    strerror(errno);
+    return -1;
+  }
+
+  return 0;
 }
 
 int // -1 on failure
@@ -177,47 +177,24 @@ application_specific_argparse()
 }
 
 int
-parse_args(int argc, char *argv[])
+argparse(int argc, char *argv[])
 {
   int opt; // Used by getopt(3) family of functions below.
   size_t byte_count;
 
+  char *input_file_name;
+  char *input_dir_name;
+  char *output_file_name;
+
   if (argc <= 1) {
-    const char *err_str = "";
-    byte_count = strlen(err_str) + sizeof(char);
-    if (write(STDERR_FILENO, err_str, byte_count) == -1) {
-    }
+    handle_help_option();
+    return -1;
   }
 
   /*
-    A string containing the legitimate option characters. If such a character
-    is followed by a colon, the option requires an argument. Two colons imply
-    it takes an optional arg. In both cases optarg will point to the argument,
-    or NULL in the latter case if the argument is not specified.
-
-    Modes:
-    If the first character of optstring is a '+' or POSIXLY_CORRECT is set
-    then option processing stops as soon as a nonoption argument is
-    encountered.
-    If the first character of optstring is a '-' then each nonoption
-    argv-element is handled as if it were the argument of an option with
-    character code 0x1.
-    If in longopts below the val is specified it is treated like a option
-    character in an option element used in getopt(3).
+    see getopt(3)
    */
   const char *optstring = "";
-
-  /*
-    This array is used by getopt_long or getopt_long_only
-
-    name: Value of long option.
-    has_arg: 0 no_argument, 1 required_arugment, 2 optional_argument
-    flag: If NULL, make getopt_long or getopt_long_only return val. Else flag
-    points to variable which is set to val if option is found but left
-    unchanged if option is not found. If flag == NULL then 0 is returned by
-    getopt_long(3) or getopt_long_only(3)
-    val: The value to return, or load int the variable pointed to by flag.
-  */
   struct option longopts[] = {
     {"directory", required_argument, NULL, (int)'d'},
     {"file", required_argument, NULL, (int)'f'},
@@ -226,61 +203,47 @@ parse_args(int argc, char *argv[])
     {"version", no_argument, NULL, 0},
     {0, 0, 0, 0}};
 
+    while (1) {
+      int longindex;
 
-  /*
-    getopt_long is like getopt(3) except that it also accepts long options
-    started with two dashes. If the program accepts only long options then set
-    optstring to the empty string and not NULL.
+      opt = getopt_long_only(argc, argv, optstring, longopts,
+        &longindex);
+      if (opt == -1) {
+        break;
+      }
 
-    longindex will point to the index of the long option relative to longopts.
-
-    getopt_long_only allows for "-" and "--" to indicate a long option. Note
-    that it is a GNU extension. Where as getopt(3) is part of POSIX.2 and
-    POSIX.1-2001.
-
-    if longopts[longindex].flag == NULL then the return value of
-    getopt_long(3) or getopt_long_only(3) is val other wise it is 0 and flag
-    points to val.
-  */
-  while (1) {
-    int longindex;
-
-    opt = getopt_long_only(argc, argv, optstring, longopts,
-      &longindex);
-    if (opt == -1) {
-      break;
-    }
-
-    switch (opt) {
-    case 0: { // Special case for version above. -v saved for verbose
-      handle_version_option();
-    }
-      break;
-    case 'f': { // User specified file.
-      if (handle_file_option(optarg) == -1) {
+      switch (opt) {
+      case 0: { // Special case for version above. -v saved for verbose
+        handle_version_option();
+        exit(0);
+      }
+        break;
+      case 'f': {
+        if (handle_file_option(optarg) == -1) {
+          return -1;
+        }
+      }
+        break;
+      case 'd': {
+        if (handle_directory_option(optarg) == -1) {
+          return -1;
+        }
+      }
+        break;
+      case 'o': {
+        if (handle_output_option(optarg) == -1) {
+          return -1;
+        }
+      }
+        break;
+      case 'h': {
+        handle_help_option();
+        exit(0);
+      }
+      default: { // '?' Unknow argument for getopt(3).
         return -1;
       }
-    }
-      break;
-    case 'd': { // User specified directory.
-      if (handle_directory_option(optarg) == -1) {
-        return -1;
       }
-    }
-      break;
-    case 'o': { // User specified output.
-      if (handle_output_option(optarg) == -1) {
-        return -1;
-      }
-    }
-      break;
-    case 'h': { // User specified help.
-      handle_help_option();
-    }
-    default: { // '?' Unknow argument.
-      return -1;
-    }
-    }
   }
 
   return 0;

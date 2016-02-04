@@ -28,7 +28,7 @@
 
 int main(int argc, char *argv[])
 {
-  if (parse_args(argc, argv) == -1) {
+  if (argparse(argc, argv) == -1) {
     exit(1);
   }
 

@@ -33,36 +33,79 @@
 
 #include "../src/image_processing.h"
 
+char *get_exe_path()
+{
+
+  size_t len;
+  size_t bytes;
+  char path[PATH_MAX];
+  char dest[PATH_MAX];
+
+  sprintf(path, "/proc/%d/exe", getpid());
+  errno = 0;
+  if ((len = readlink(path, dest, PATH_MAX)) == -1) {
+    strerror(errno);
+  }
+  bytes = len * sizeof(char) + sizeof(char);
+  void *argv_0 = malloc(bytes);
+  if ((argv_0 = memcpy(argv_0, dest, bytes)) == NULL) {
+    exit(EXIT_FAILURE);
+  };
+  ((char*)argv_0)[len] = '\0';
+
+  return argv_0;
+}
+
 START_TEST(check_parse_args)
 {
   int argc;
-  char path[PATH_MAX];
-  char dest[PATH_MAX];
-  struct stat info;
-  pid_t pid = getpid();
-  sprintf(path, "/proc/%d/exe", pid);
-  errno = 0;
-  if (readlink(path, dest, PATH_MAX) == -1) {
-    strerror(errno);
-  }
+
+  char *dest = get_exe_path();
 
   {
-    char *argv[] = {dest};
-    argc = sizeof(argv) / sizeof(argv[1]);
+    char *argv[] = {dest, 0};
+    argc = sizeof(argv) / sizeof(argv[1]) - 1;
     ck_assert_int_eq(-1, argparse(argc, argv));
   }
 
   {
-    char *argv[] = {dest, "-f"};
-    argc = sizeof(argv) / sizeof(argv[1]);
+    char *argv[] = {dest, "-f", 0};
+    argc = sizeof(argv) / sizeof(argv[1]) - 1;
     ck_assert_int_eq(-1, argparse(argc, argv));
   }
 
   {
-    char *argv[] = {dest, "--file", "/dev/null"};
-    argc = sizeof(argv) / sizeof(argv[1]);
+    char *argv[] = {dest, "-f", "/dev/null", 0};
+    argc = sizeof(argv) / sizeof(argv[1]) - 1;
     ck_assert_int_eq(0, argparse(argc, argv));
   }
+
+  {
+    char *argv[] = {dest, "--file", "/dev/null", 0};
+    argc = sizeof(argv) / sizeof(argv[1]) - 1;
+    ck_assert_int_eq(0, argparse(argc, argv));
+  }
+
+  {
+    char *argv[] = {dest, "-d", 0};
+    argc = sizeof(argv) / sizeof(argv[1]) - 1;
+    ck_assert_int_eq(-1, argparse(argc, argv));
+  }
+
+  // TODO: These should fail due to permissions.
+  {
+    char *argv[] = {dest, "-d", "/dev", 0};
+    argc = sizeof(argv) / sizeof(argv[1]) - 1;
+    ck_assert_int_eq(0, argparse(argc, argv));
+  }
+
+  {
+    char *argv[] = {dest, "--dir", "/", 0};
+    argc = sizeof(argv) / sizeof(argv[1]) - 1;
+    ck_assert_int_eq(0, argparse(argc, argv));
+  }
+
+  free(dest);
 }
 END_TEST
 

@@ -23,6 +23,7 @@
 */
 
 #include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -39,6 +40,35 @@ namespace image_processing { extern "C" {
 #endif
 
 void
+print_error_msg_and_exit(int errnum)
+{
+  size_t len;
+  char *err = strerror(errnum);
+  len = strlen(err);
+  if (write(STDERR_FILENO, err, len) == -1) {
+    exit(EXIT_FAILURE);
+  }
+  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
+    exit(EXIT_FAILURE);
+  }
+  exit(EXIT_FAILURE);
+}
+
+void
+print_error_msg(int errnum)
+{
+  size_t len;
+  char *err = strerror(errnum);
+  len = strlen(err) + sizeof(char);
+  if (write(STDERR_FILENO, err, len) == -1) {
+    exit(EXIT_FAILURE);
+  }
+  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
+    exit(EXIT_FAILURE);
+  }
+}
+
+void
 handle_help_option()
 {
   size_t len;
@@ -49,29 +79,25 @@ handle_help_option()
   len = strlen(header) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, header, len) == -1) {
-    strerror(errno);
-    exit(-1);
+    print_error_msg_and_exit(errno);
   }
-
 
   const char *required_args = "\nREQUIRED ARGUMENTS:\n";
   len = strlen(required_args) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, required_args, len) == -1) {
-    strerror(errno);
-    exit(-1);
+    print_error_msg_and_exit(errno);
   }
 
-  const char *directory_string = "  -d <arg> or --directory <arg>"
-    "    Absolute or relative path to a directory\n"
+  const char *directory_string = "  -d <arg> or --dir <arg>"
+    "          Absolute or relative path to a directory\n"
     "                                   which contains images that need to\n"
     "                                   be processed. At least -f or -d is\n"
     "                                   required but both can be used.\n";
   len = strlen(directory_string) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, directory_string, len) == -1) {
-    strerror(errno);
-    exit(-1);
+    print_error_msg_and_exit(errno);
   }
 
   const char *file_string = "  -f <arg> or --file <arg>"
@@ -82,8 +108,7 @@ handle_help_option()
   len = strlen(file_string) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, file_string, len) == -1) {
-    strerror(errno);
-    exit(-1);
+    print_error_msg_and_exit(errno);
   }
 
   const char *output_string = "  -o <arg> or --output <arg>"
@@ -93,8 +118,7 @@ handle_help_option()
   len = strlen(output_string) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, output_string, len) == -1) {
-    strerror(errno);
-    exit(-1);
+    print_error_msg_and_exit(errno);
   }
 }
 
@@ -117,12 +141,11 @@ handle_version_option()
     len = strlen(parts[elem]) + sizeof(char);
     errno = 0;
     if (write(STDOUT_FILENO, parts[elem], len) == -1) {
-      strerror(errno);
-      exit(-1);
+      print_error_msg_and_exit(errno);
     }
+    errno = 0;
     if (write(STDOUT_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
-      strerror(errno);
-      exit(-1);
+      print_error_msg_and_exit(errno);
     }
   }
   exit(0);
@@ -141,7 +164,7 @@ handle_file_option(const char *optarg)
 
   errno = 0;
   if ((fd = open(optarg, O_RDONLY)) == -1) {
-    strerror(errno);
+    print_error_msg(errno);
     return -1;
   }
 
@@ -152,18 +175,27 @@ int // -1 on failure
 handle_directory_option(const char *optarg)
 {
   size_t len;
+  DIR *dirp;
+  struct dirent *dir_s;
 
-  if (optarg && strcmp(optarg, "") != 0) {
-    errno = 0;
-    len = strlen(optarg) + sizeof(char);
-    if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
-      strerror(errno);
-      exit(-1);
-    }
-    return 0;
+  if (!optarg || strcmp(optarg, "") == 0) {
+    handle_help_option();
+    return -1;
   }
 
-  return -1;
+  errno = 0;
+  if ((dirp = opendir(optarg)) == NULL) {
+    print_error_msg(errno);
+    return -1;
+  }
+
+  errno = 0;
+  if (closedir(dirp) == -1) {
+    print_error_msg(errno);
+    return -1;
+  }
+
+  return 0;
 }
 
 int // -1 on failure
@@ -175,8 +207,8 @@ handle_output_option(const char *optarg)
     errno = 0;
     len = strlen(optarg) + sizeof(char);
     if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
-      strerror(errno);
-      exit(-1);
+      print_error_msg(errno);
+      exit(EXIT_FAILURE);
     }
     return 0;
   }
@@ -210,13 +242,15 @@ argparse(int argc, char *argv[])
    */
   const char *optstring = "+f:d:o:";
   struct option longopts[] = {
-    {"directory", required_argument, NULL, (int)'d'},
+    {"dir", required_argument, NULL, (int)'d'},
     {"file", required_argument, NULL, (int)'f'},
     {"output", required_argument, NULL, (int)'o'},
     {"help", no_argument, NULL, (int)'h'},
     {"version", no_argument, NULL, 0},
     {0, 0, 0, 0}};
 
+    // Setting optind in getopt(3) to 0 allows us to scan another vector or
+    // to rescan the same vector.
     while (1) {
       int longindex;
 
@@ -224,46 +258,55 @@ argparse(int argc, char *argv[])
         &longindex);
 
       if (opt == -1 && optind == argc) {
+        optind = 0;
         break;
-      } else {
+      } else if (opt == -1 && optind != argc) {
         handle_help_option();
+        optind = 0;
         return -1;
       }
 
       switch (opt) {
       case 0: { // Special case for version above. -v saved for verbose
         handle_version_option();
+        optind = 0;
         exit(0);
       }
         break;
       case 'f': {
         if (handle_file_option(optarg) == -1) {
+          optind = 0;
           return -1;
         }
       }
         break;
       case 'd': {
         if (handle_directory_option(optarg) == -1) {
+          optind = 0;
           return -1;
         }
       }
         break;
       case 'o': {
         if (handle_output_option(optarg) == -1) {
+          optind = 0;
           return -1;
         }
       }
         break;
       case 'h': {
         handle_help_option();
+        optind = 0;
         exit(0);
       }
       default: { // '?' Unknow argument for getopt(3).
+        optind = 0;
         return -1;
       }
       }
   }
 
+  optind = 0;
   return 0;
 }
 

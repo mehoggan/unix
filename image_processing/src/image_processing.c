@@ -23,6 +23,7 @@
 */
 
 #include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -53,7 +54,6 @@ handle_help_option()
     exit(-1);
   }
 
-
   const char *required_args = "\nREQUIRED ARGUMENTS:\n";
   len = strlen(required_args) + sizeof(char);
   errno = 0;
@@ -62,8 +62,8 @@ handle_help_option()
     exit(-1);
   }
 
-  const char *directory_string = "  -d <arg> or --directory <arg>"
-    "    Absolute or relative path to a directory\n"
+  const char *directory_string = "  -d <arg> or --dir <arg>"
+    "          Absolute or relative path to a directory\n"
     "                                   which contains images that need to\n"
     "                                   be processed. At least -f or -d is\n"
     "                                   required but both can be used.\n";
@@ -152,18 +152,35 @@ int // -1 on failure
 handle_directory_option(const char *optarg)
 {
   size_t len;
+  DIR *dirp;
+  struct dirent *dir_s;
 
-  if (optarg && strcmp(optarg, "") != 0) {
-    errno = 0;
-    len = strlen(optarg) + sizeof(char);
-    if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
-      strerror(errno);
-      exit(-1);
-    }
-    return 0;
+  if (!optarg || strcmp(optarg, "") == 0) {
+    handle_help_option();
+    return -1;
   }
 
-  return -1;
+  errno = 0;
+  if ((dirp = opendir(optarg)) == NULL) {
+    strerror(errno);
+    return -1;
+  }
+
+  errno = 0;
+  if ((dir_s = readdir(dirp)) == NULL) {
+    strerror(errno);
+    return -1;
+  }
+
+  // TODO: Check if user can write to this directory.
+
+  errno = 0;
+  if (closedir(dirp) == -1) {
+    strerror(errno);
+    return -1;
+  }
+
+  return 0;
 }
 
 int // -1 on failure
@@ -210,13 +227,15 @@ argparse(int argc, char *argv[])
    */
   const char *optstring = "+f:d:o:";
   struct option longopts[] = {
-    {"directory", required_argument, NULL, (int)'d'},
+    {"dir", required_argument, NULL, (int)'d'},
     {"file", required_argument, NULL, (int)'f'},
     {"output", required_argument, NULL, (int)'o'},
     {"help", no_argument, NULL, (int)'h'},
     {"version", no_argument, NULL, 0},
     {0, 0, 0, 0}};
 
+    // Setting optind in getopt(3) to 0 allows us to scan another vector or
+    // to rescan the same vector.
     while (1) {
       int longindex;
 
@@ -224,46 +243,55 @@ argparse(int argc, char *argv[])
         &longindex);
 
       if (opt == -1 && optind == argc) {
+        optind = 0;
         break;
-      } else {
+      } else if (opt == -1 && optind != argc) {
         handle_help_option();
+        optind = 0;
         return -1;
       }
 
       switch (opt) {
       case 0: { // Special case for version above. -v saved for verbose
         handle_version_option();
+        optind = 0;
         exit(0);
       }
         break;
       case 'f': {
         if (handle_file_option(optarg) == -1) {
+          optind = 0;
           return -1;
         }
       }
         break;
       case 'd': {
         if (handle_directory_option(optarg) == -1) {
+          optind = 0;
           return -1;
         }
       }
         break;
       case 'o': {
         if (handle_output_option(optarg) == -1) {
+          optind = 0;
           return -1;
         }
       }
         break;
       case 'h': {
         handle_help_option();
+        optind = 0;
         exit(0);
       }
       default: { // '?' Unknow argument for getopt(3).
+        optind = 0;
         return -1;
       }
       }
   }
 
+  optind = 0;
   return 0;
 }
 

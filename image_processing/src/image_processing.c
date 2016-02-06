@@ -53,9 +53,20 @@ handle_help_option()
     exit(-1);
   }
 
-  const char *directory_string = "  -d --directory <arg>"
-    "    Absolute or relative path to a directory which contains\n"
-    "                    images that need to be processed.\n";
+
+  const char *required_args = "\nREQUIRED ARGUMENTS:\n";
+  len = strlen(required_args) + sizeof(char);
+  errno = 0;
+  if (write(STDOUT_FILENO, required_args, len) == -1) {
+    strerror(errno);
+    exit(-1);
+  }
+
+  const char *directory_string = "  -d <arg> or --directory <arg>"
+    "    Absolute or relative path to a directory\n"
+    "                                   which contains images that need to\n"
+    "                                   be processed. At least -f or -d is\n"
+    "                                   required but both can be used.\n";
   len = strlen(directory_string) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, directory_string, len) == -1) {
@@ -63,9 +74,11 @@ handle_help_option()
     exit(-1);
   }
 
-  const char *file_string = "  -f --file <arg>"
-    "         Absolute or relative path to a file which contains \n"
-    "                    an image that needs to be processed.\n";
+  const char *file_string = "  -f <arg> or --file <arg>"
+    "         Absolute or relative path to a file which\n"
+    "                                   contains images that need to be\n"
+    "                                   processed. At least -f or -d is\n"
+    "                                   required but both can be used.\n";
   len = strlen(file_string) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, file_string, len) == -1) {
@@ -73,9 +86,10 @@ handle_help_option()
     exit(-1);
   }
 
-  const char *output_string = "  -o --output <arg>"
-    "       Absolute or relative path to a directory where output\n"
-    "                    of processing should be put.\n";
+  const char *output_string = "  -o <arg> or --output <arg>"
+    "       Absolute or relative path to a directory\n"
+    "                                   where output of processing should\n"
+    "                                   be put.\n";
   len = strlen(output_string) + sizeof(char);
   errno = 0;
   if (write(STDOUT_FILENO, output_string, len) == -1) {
@@ -179,7 +193,7 @@ application_specific_argparse()
 int
 argparse(int argc, char *argv[])
 {
-  int opt; // Used by getopt(3) family of functions below.
+  int opt;
   size_t byte_count;
 
   char *input_file_name;
@@ -194,7 +208,7 @@ argparse(int argc, char *argv[])
   /*
     see getopt(3)
    */
-  const char *optstring = "";
+  const char *optstring = "+f:d:o:";
   struct option longopts[] = {
     {"directory", required_argument, NULL, (int)'d'},
     {"file", required_argument, NULL, (int)'f'},
@@ -206,10 +220,14 @@ argparse(int argc, char *argv[])
     while (1) {
       int longindex;
 
-      opt = getopt_long_only(argc, argv, optstring, longopts,
+      opt = getopt_long(argc, argv, optstring, longopts,
         &longindex);
-      if (opt == -1) {
+
+      if (opt == -1 && optind == argc) {
         break;
+      } else {
+        handle_help_option();
+        return -1;
       }
 
       switch (opt) {

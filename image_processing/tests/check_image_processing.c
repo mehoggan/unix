@@ -23,8 +23,12 @@
 */
 
 #include <check.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <linux/limits.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "../src/image_processing.h"
@@ -32,17 +36,32 @@
 START_TEST(check_parse_args)
 {
   int argc;
+  char path[PATH_MAX];
+  char dest[PATH_MAX];
+  struct stat info;
+  pid_t pid = getpid();
+  sprintf(path, "/proc/%d/exe", pid);
+  errno = 0;
+  if (readlink(path, dest, PATH_MAX) == -1) {
+    strerror(errno);
+  }
 
   {
-    char *argv[] = {};
+    char *argv[] = {dest};
     argc = sizeof(argv) / sizeof(argv[1]);
     ck_assert_int_eq(-1, argparse(argc, argv));
   }
 
   {
-    char *argv[] = {};
+    char *argv[] = {dest, "-f"};
     argc = sizeof(argv) / sizeof(argv[1]);
     ck_assert_int_eq(-1, argparse(argc, argv));
+  }
+
+  {
+    char *argv[] = {dest, "--file", "/dev/null"};
+    argc = sizeof(argv) / sizeof(argv[1]);
+    ck_assert_int_eq(0, argparse(argc, argv));
   }
 }
 END_TEST

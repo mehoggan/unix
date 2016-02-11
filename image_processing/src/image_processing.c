@@ -177,16 +177,49 @@ handle_directory_option(const char *optarg)
   size_t len;
   DIR *dirp;
   struct dirent *dir_s;
+  struct stat buf;
 
   if (!optarg || strcmp(optarg, "") == 0) {
     handle_help_option();
     return -1;
   }
 
+  if (lstat(optarg, &buf) == -1) {
+      print_error_msg(errno);
+      return -1;
+  }
+
+  // TODO: Working here.
+  if ((buf.st_mode & S_IFDIR) == -1) {
+    // Get error etc.
+  }
+
   errno = 0;
   if ((dirp = opendir(optarg)) == NULL) {
-    print_error_msg(errno);
-    return -1;
+    switch (errno) {
+    case EACCES:
+    case ENFILE:
+    case ENOMEM: {
+      print_error_msg(errno);
+      return -1;
+    }
+      // No break needed just return.
+    case ENOENT: {
+      errno = 0;
+      if (mkdir(optarg, 0x755) == -1) {
+        print_error_msg(errno);
+        return -1;
+      }
+      if ((dirp = opendir(optarg)) == NULL) {
+        print_error_msg(errno);
+        return -1;
+      }
+    }
+      break;
+    default: {
+      return -1;
+    }
+    }
   }
 
   errno = 0;

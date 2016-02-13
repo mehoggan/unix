@@ -25,6 +25,7 @@
 #include <stdlib.h>
 
 #include "image_processing.h"
+#include "utils.h"
 
 int main(int argc, char *argv[])
 {

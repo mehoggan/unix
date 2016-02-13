@@ -25,36 +25,15 @@
 #include <check.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "../src/utils.h"
 #include "../src/image_processing.h"
-
-char *get_exe_path()
-{
-
-  size_t len;
-  size_t bytes;
-  char path[PATH_MAX];
-  char dest[PATH_MAX];
-
-  sprintf(path, "/proc/%d/exe", getpid());
-  errno = 0;
-  if ((len = readlink(path, dest, PATH_MAX)) == -1) {
-    strerror(errno);
-  }
-  bytes = len * sizeof(char) + sizeof(char);
-  void *argv_0 = malloc(bytes);
-  if ((argv_0 = memcpy(argv_0, dest, bytes)) == NULL) {
-    exit(EXIT_FAILURE);
-  };
-  ((char*)argv_0)[len] = '\0';
-
-  return argv_0;
-}
 
 START_TEST(check_parse_args)
 {
@@ -93,19 +72,56 @@ START_TEST(check_parse_args)
   }
 
   // TODO: These should fail due to permissions.
-  {
-    char *argv[] = {dest, "-d", "/dev", 0};
-    argc = sizeof(argv) / sizeof(argv[1]) - 1;
-    ck_assert_int_eq(0, argparse(argc, argv));
-  }
-
-  {
-    char *argv[] = {dest, "--dir", "/", 0};
-    argc = sizeof(argv) / sizeof(argv[1]) - 1;
-    ck_assert_int_eq(0, argparse(argc, argv));
-  }
+//  {
+//    char *argv[] = {dest, "-d", "/dev", 0};
+//    argc = sizeof(argv) / sizeof(argv[1]) - 1;
+//    ck_assert_int_eq(0, argparse(argc, argv));
+//  }
+//
+//  {
+//    char *argv[] = {dest, "--dir", "/", 0};
+//    argc = sizeof(argv) / sizeof(argv[1]) - 1;
+//    ck_assert_int_eq(0, argparse(argc, argv));
+//  }
 
   free(dest);
+}
+END_TEST
+
+START_TEST(check_itoa)
+{
+  int test_val;
+  char *test_val_str;
+
+  {
+    test_val = 0;
+    test_val_str = itoa(test_val);
+    ck_assert_str_eq("0", test_val_str);
+    free(test_val_str);
+    test_val_str = NULL;
+  }
+
+  {
+    test_val = INT_MAX;
+    test_val_str = itoa(test_val);
+    ck_assert_str_eq("2147483647", test_val_str);
+    free(test_val_str);
+    test_val_str = NULL;
+  }
+
+  {
+    test_val = INT_MIN;
+    test_val_str = itoa(test_val);
+    ck_assert_str_eq("-2147483648", test_val_str);
+    free(test_val_str);
+    test_val_str = NULL;
+  }
+
+}
+END_TEST
+
+START_TEST(check_get_exe_path)
+{
 }
 END_TEST
 
@@ -118,6 +134,8 @@ Suite *image_processing_suite(void)
   tc_core = tcase_create("Core");
 
   tcase_add_test(tc_core, check_parse_args);
+  tcase_add_test(tc_core, check_itoa);
+  tcase_add_test(tc_core, check_get_exe_path);
 
   suite_add_tcase(s, tc_core);
 

@@ -33,40 +33,12 @@
 #include <unistd.h>
 
 #include "image_processing.h"
+#include "utils.h"
 #include "version_num.h"
 
 #ifdef __cplusplus
 namespace image_processing { extern "C" {
 #endif
-
-void
-print_error_msg_and_exit(int errnum)
-{
-  size_t len;
-  char *err = strerror(errnum);
-  len = strlen(err);
-  if (write(STDERR_FILENO, err, len) == -1) {
-    exit(EXIT_FAILURE);
-  }
-  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
-    exit(EXIT_FAILURE);
-  }
-  exit(EXIT_FAILURE);
-}
-
-void
-print_error_msg(int errnum)
-{
-  size_t len;
-  char *err = strerror(errnum);
-  len = strlen(err) + sizeof(char);
-  if (write(STDERR_FILENO, err, len) == -1) {
-    exit(EXIT_FAILURE);
-  }
-  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
-    exit(EXIT_FAILURE);
-  }
-}
 
 void
 handle_help_option()
@@ -190,7 +162,7 @@ handle_directory_option(const char *optarg)
   }
 
   // TODO: Working here.
-  if ((buf.st_mode & S_IFDIR) == -1) {
+  if ((buf.st_mode & S_IFDIR) == 0) {
     // Get error etc.
   }
 

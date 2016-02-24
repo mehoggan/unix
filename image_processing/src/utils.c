@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <fenv.h>
+#include <limits.h>
 #include <linux/limits.h>
 #include <math.h>
 #include <stdlib.h>
@@ -34,86 +35,136 @@
 #include "utils.h"
 
 void
-print_error_msg_and_exit(int errnum)
+print_error_msg_and_exit(int errnum, int line, const char *file,
+  const char *func)
 {
-  size_t len;
-  char *err;
-
-  err = strerror(errnum);
-  len = strlen(err);
-  if (write(STDERR_FILENO, err, len) == -1) {
-    exit(EXIT_FAILURE);
-  }
-  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
-    exit(EXIT_FAILURE);
-  }
+  print_error_msg(errnum, line, file, func);
   exit(EXIT_FAILURE);
 }
 
 void
-print_error_msg(int errnum)
+print_error_msg(int errnum, int line, const char *file, const char *func)
 {
   size_t len;
-  char *err = strerror(errnum);
+  char *err;
+  char *line_num;
+  unsigned int byte_count;
 
+  const char *header_part1 = "ERROR: line: ";
+  len = strlen(header_part1);
+  if (write(STDERR_FILENO, header_part1, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  byte_count = charcnta(line, 10);
+  errno = 0;
+  line_num = malloc(byte_count + 1 * sizeof(char));
+  if (!line_num || errno) {
+    exit(EXIT_FAILURE);
+  }
+  line_num = ip_itoa(line, line_num, 10);
+  len = strlen(line_num);
+  if (write(STDERR_FILENO, line_num, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  const char *header_part2 = " file: ";
+  len = strlen(header_part2);
+  if (write(STDERR_FILENO, header_part2, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  len = strlen(file);
+  if (write(STDERR_FILENO, file, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  const char *header_part3 = " function: ";
+  len = strlen(header_part3);
+  if (write(STDERR_FILENO, header_part3, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  len = strlen(func);
+  if (write(STDERR_FILENO, func, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  const char *header_part4 = "\n\t";
+  len = strlen(header_part4);
+  if (write(STDERR_FILENO, header_part4, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  err = strerror(errnum);
   len = strlen(err) + sizeof(char);
   if (write(STDERR_FILENO, err, len) == -1) {
+    free(line_num);
     exit(EXIT_FAILURE);
   }
+
   if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
+    free(line_num);
     exit(EXIT_FAILURE);
   }
+
+  free(line_num);
+}
+
+size_t
+charcnta(int i, int base)
+{
+  int tmp;
+  short digit_cnt;
+
+  tmp = i;
+  digit_cnt = (i != 0) ? 0 : 1;
+  do {
+    tmp /= base;
+    ++digit_cnt;
+  } while(tmp);
+
+  return digit_cnt * sizeof(char);
 }
 
 char *
-itoa(int i)
+ip_itoa(int i, char *str, int base)
 {
-  short digit_cnt;
-  short index;
-  void *ret;
   char digit;
+  char max_char;
+  char complement_char;
+  int tmp;
+  size_t index;
+  size_t max_digits;
+  int carry_bit;
 
-  errno = 0;
-  feclearexcept(FE_ALL_EXCEPT);
-  if (i == 0) {
-    digit_cnt = 1;
-  } else {
-    digit_cnt = floor(log10(abs(i))) + 1;
-    if (errno || fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW |
-      FE_UNDERFLOW)) {
-      return NULL;
-    }
-  }
+  const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
+  max_digits = charcnta(INT_MIN, base);
 
-  if (i < 0) {
-    ++digit_cnt;
-  }
-  ++digit_cnt; // '\0'
+  max_char = digits[base - 1];
+  index = charcnta(i, base);
 
-  errno = 0;
-  if ((ret = malloc(digit_cnt * sizeof(char))) == NULL || errno) {
-    print_error_msg(errno);
-    free(ret);
-    return NULL;
-  }
+  str[--index] = '\0';
 
-  // This made debugging easier.
-  memset(ret, '0', digit_cnt * sizeof(char));
-
-  index = digit_cnt;
-  ((char*)ret)[--index] = '\0';
-
+  tmp = i;
   do {
-    digit = (char)((int)'0' + i % 10);
-    ((char*)ret)[--index] = digit;
-    i /= 10;
-  } while (i > 0);
+    digit = '0' + abs(tmp % base);
+    str[--index] = digit;
+    tmp /= 10;
+  } while (tmp != 0);
 
   if (i < 0) {
-    ((char*)ret)[--index] = '-';
+    str[--index] = '-';
   }
 
-  return ret;
+  return str;
 }
 
 char *
@@ -125,10 +176,13 @@ get_exe_path()
   char dest[PATH_MAX];
   pid_t pid;
   char *pidstr;
-  void *argv_0;
+  char *argv_0;
+  int byte_count;
 
   pid = getpid();
-  pidstr = itoa(getpid());
+  byte_count = charcnta(pid, 10);
+  pidstr = malloc(byte_count + 1 * sizeof(char));
+  pidstr = ip_itoa(pid, pidstr, 10);
   if (!pidstr) {
     return NULL;
   }
@@ -139,24 +193,26 @@ get_exe_path()
 
   errno = 0;
   if ((len = readlink(path, dest, PATH_MAX)) == -1) {
-    print_error_msg(errno);
+    print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
     return NULL;
   }
 
   bytes = len * sizeof(char) + sizeof(char);
   errno = 0;
-  if ((argv_0 = malloc(bytes)) == NULL || errno) {
+  argv_0 = malloc(bytes);
+  if (argv_0 == NULL || errno) {
     free(argv_0);
-    print_error_msg(errno);
+    print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
     return NULL;
   }
 
-  if ((argv_0 = memcpy(argv_0, dest, bytes)) == NULL) {
+  argv_0 = memcpy(argv_0, dest, bytes);
+  if (argv_0 == NULL) {
     free(argv_0);
     return NULL;
   }
 
-  ((char*)argv_0)[len] = '\0';
+  argv_0[len] = '\0';
 
   return argv_0;
 }

@@ -30,31 +30,67 @@ namespace image_processing { extern "C" {
 #endif
 
 /**
+* @brief Write a message to stderr based on the line number in a given file
+* from a specific function.
+*
+* @param line __LINE__
+* @param file __FILE__
+* @param func __FUNCTION__
+*/
+void print_msg(int line, const char *file, const char *func);
+
+/**
 * @brief If passed an appropiate value (see errno(3)) it will write to stderr
 * a descriptive message. It will also terminate the program with an exit call.
 *
 * @param errnum Should be errno or a value defined in errno.h.
+* @param line __LINE__
+* @param file __FILE__
+* @param func __FUNCTION__
 */
-void print_error_msg_and_exit(int errnum);
+void print_error_msg_and_exit(int errnum, int line, const char *file,
+  const char *func);
 
 /**
 * @brief If passed an appropiate value (see errno(3)) it will write to stderr
-* a descriptive message.
+* a descriptive message. It will also terminate the program with an exit call.
 *
 * @param errnum Should be errno or a value defined in errno.h.
+* @param line __LINE__
+* @param file __FILE__
+* @param func __FUNCTION__
 */
-void print_error_msg(int errnum);
+void print_error_msg(int errnum, int line, const char *file,
+  const char *func);
 
 /**
-* @brief Converts param i to a c string to be free'd by client code.
+* @brief Counts the number of bytes needed to store parameter i including the
+* sign into a null-terminated ascii string using the specified base.
+*
+* @param i The integer to count characters for.
+* @param base Numerical base used to represent the value as a string, between
+* 2 and 36, where 10 means decimal base, 16 hexidecimal, 8 octal, and 2 binary.
+*
+* @return The number of bytes needed to store parameter i including the sign
+* into a null-terminated ascii string using the specified base.
+*/
+size_t charcnta(int i, int base);
+
+/**
+* @brief Converts in integer value to a null-terminated string using the
+* specified base and stores the results in the array given by the str
+* parameter.
 *
 * @param i The integer to be converted.
+* @param str Should be an array long enough to contain any possible value
+* sizeof(int) * 8 + 1 for radix = 2, i.e. 17 bytyes in 16 bit platforms and 33
+* on 32 bit platforms.
+* @param base Numerical base used to represesnt the value as a string, between
+* 2 and 36, where 10 means decimal base, 16 hexidecimal, 8 octal, and 2 binary.
 *
-* @return a null terminated c string to be free'd by clients whoes value is
-* lexicographically equivalent to the value contained in param i. Otherwise
-* it returns NULL if the coversion is not possible.
+* @return A pointer to the null-terminated string, same as parameter str.
 */
-char *itoa(int i);
+char *ip_itoa(int i, char *str, int base);
 
 /**
 * @brief Used to get the path of the current executable. This is accomplished

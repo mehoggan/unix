@@ -43,6 +43,7 @@ namespace image_processing { extern "C" {
 void
 handle_help_option()
 {
+  int status;
   size_t len;
 
   const char *header = "Report bugs to: matthew.hoggan@matthewh.me\n"
@@ -50,15 +51,17 @@ handle_help_option()
     "General help using GNU software: <http://www.gnu.org/gethelp/>\n";
   len = strlen(header) + sizeof(char);
   errno = 0;
-  if (write(STDOUT_FILENO, header, len) == -1) {
-    print_error_msg_and_exit(errno);
+  status = write(STDOUT_FILENO, header, len);
+  if (status == -1) {
+    print_error_msg_and_exit(errno, __LINE__, __FILE__, __FUNCTION__);
   }
 
   const char *required_args = "\nREQUIRED ARGUMENTS:\n";
   len = strlen(required_args) + sizeof(char);
   errno = 0;
-  if (write(STDOUT_FILENO, required_args, len) == -1) {
-    print_error_msg_and_exit(errno);
+  status = write(STDOUT_FILENO, required_args, len);
+  if (status == -1) {
+    print_error_msg_and_exit(errno, __LINE__, __FILE__, __FUNCTION__);
   }
 
   const char *directory_string = "  -d <arg> or --dir <arg>"
@@ -68,8 +71,9 @@ handle_help_option()
     "                                   required but both can be used.\n";
   len = strlen(directory_string) + sizeof(char);
   errno = 0;
-  if (write(STDOUT_FILENO, directory_string, len) == -1) {
-    print_error_msg_and_exit(errno);
+  status = write(STDOUT_FILENO, directory_string, len);
+  if (status == -1) {
+    print_error_msg_and_exit(errno, __LINE__, __FILE__, __FUNCTION__);
   }
 
   const char *file_string = "  -f <arg> or --file <arg>"
@@ -79,8 +83,9 @@ handle_help_option()
     "                                   required but both can be used.\n";
   len = strlen(file_string) + sizeof(char);
   errno = 0;
-  if (write(STDOUT_FILENO, file_string, len) == -1) {
-    print_error_msg_and_exit(errno);
+  status = write(STDOUT_FILENO, file_string, len);
+  if (status == -1) {
+    print_error_msg_and_exit(errno, __LINE__, __FILE__, __FUNCTION__);
   }
 
   const char *output_string = "  -o <arg> or --output <arg>"
@@ -89,14 +94,16 @@ handle_help_option()
     "                                   be put.\n";
   len = strlen(output_string) + sizeof(char);
   errno = 0;
-  if (write(STDOUT_FILENO, output_string, len) == -1) {
-    print_error_msg_and_exit(errno);
+  status = write(STDOUT_FILENO, output_string, len);
+  if (status == -1) {
+    print_error_msg_and_exit(errno, __LINE__, __FILE__, __FUNCTION__);
   }
 }
 
 void
 handle_version_option()
 {
+  int status;
   size_t len;
   size_t elem;
 
@@ -112,12 +119,14 @@ handle_version_option()
   for (elem = 0; elem < sizeof(parts) / sizeof(parts[0]); ++elem) {
     len = strlen(parts[elem]) + sizeof(char);
     errno = 0;
-    if (write(STDOUT_FILENO, parts[elem], len) == -1) {
-      print_error_msg_and_exit(errno);
+    status = write(STDOUT_FILENO, parts[elem], len);
+    if (status == -1) {
+      print_error_msg_and_exit(errno, __LINE__, __FILE__, __FUNCTION__);
     }
     errno = 0;
-    if (write(STDOUT_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
-      print_error_msg_and_exit(errno);
+    status = write(STDOUT_FILENO, "\n", strlen("\n") + sizeof(char));
+    if (status == -1) {
+      print_error_msg_and_exit(errno, __LINE__, __FILE__, __FUNCTION__);
     }
   }
   exit(0);
@@ -135,8 +144,9 @@ handle_file_option(const char *optarg)
   }
 
   errno = 0;
-  if ((fd = open(optarg, O_RDONLY)) == -1) {
-    print_error_msg(errno);
+  fd = open(optarg, O_RDONLY);
+  if (fd == -1) {
+    print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
     return -1;
   }
 
@@ -146,6 +156,7 @@ handle_file_option(const char *optarg)
 int // -1 on failure
 handle_directory_option(const char *optarg)
 {
+  int status;
   size_t len;
   DIR *dirp;
   struct dirent *dir_s;
@@ -156,9 +167,14 @@ handle_directory_option(const char *optarg)
     return -1;
   }
 
-  if (lstat(optarg, &buf) == -1) {
-      print_error_msg(errno);
+  status = lstat(optarg, &buf);
+  if (status == -1) {
+      print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
       return -1;
+  }
+
+  if (!S_ISDIR(buf.st_mode)) {
+    return -1;
   }
 
   // TODO: Working here.
@@ -167,23 +183,26 @@ handle_directory_option(const char *optarg)
   }
 
   errno = 0;
-  if ((dirp = opendir(optarg)) == NULL) {
+  dirp = opendir(optarg);
+  if (dirp == NULL) {
     switch (errno) {
     case EACCES:
     case ENFILE:
     case ENOMEM: {
-      print_error_msg(errno);
+      print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
       return -1;
     }
       // No break needed just return.
     case ENOENT: {
       errno = 0;
-      if (mkdir(optarg, 0x755) == -1) {
-        print_error_msg(errno);
+      status = mkdir(optarg, 0x755);
+      if (status == -1) {
+        print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
         return -1;
       }
-      if ((dirp = opendir(optarg)) == NULL) {
-        print_error_msg(errno);
+      dirp = opendir(optarg);
+      if (dirp == NULL) {
+        print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
         return -1;
       }
     }
@@ -195,8 +214,9 @@ handle_directory_option(const char *optarg)
   }
 
   errno = 0;
-  if (closedir(dirp) == -1) {
-    print_error_msg(errno);
+  status = closedir(dirp);
+  if (status == -1) {
+    print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
     return -1;
   }
 
@@ -206,13 +226,15 @@ handle_directory_option(const char *optarg)
 int // -1 on failure
 handle_output_option(const char *optarg)
 {
+  int status;
   size_t len;
 
   if (optarg && strcmp(optarg, "") != 0) {
     errno = 0;
     len = strlen(optarg) + sizeof(char);
-    if (write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char)) == -1) {
-      print_error_msg(errno);
+    status = write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char));
+    if (status == -1) {
+      print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
       exit(EXIT_FAILURE);
     }
     return 0;
@@ -230,6 +252,7 @@ application_specific_argparse()
 int
 argparse(int argc, char *argv[])
 {
+  int status;
   int opt;
   size_t byte_count;
 
@@ -259,8 +282,7 @@ argparse(int argc, char *argv[])
     while (1) {
       int longindex;
 
-      opt = getopt_long(argc, argv, optstring, longopts,
-        &longindex);
+      opt = getopt_long(argc, argv, optstring, longopts, &longindex);
 
       if (opt == -1 && optind == argc) {
         optind = 0;
@@ -279,21 +301,24 @@ argparse(int argc, char *argv[])
       }
         break;
       case 'f': {
-        if (handle_file_option(optarg) == -1) {
+        status = handle_file_option(optarg);
+        if (status == -1) {
           optind = 0;
           return -1;
         }
       }
         break;
       case 'd': {
-        if (handle_directory_option(optarg) == -1) {
+        status = handle_directory_option(optarg);
+        if (status == -1) {
           optind = 0;
           return -1;
         }
       }
         break;
       case 'o': {
-        if (handle_output_option(optarg) == -1) {
+        status = handle_output_option(optarg);
+        if (status == -1) {
           optind = 0;
           return -1;
         }

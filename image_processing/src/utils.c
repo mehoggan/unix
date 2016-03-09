@@ -45,9 +45,8 @@ print_error_msg_and_exit(int errnum, int line, const char *file,
 void
 print_error_msg(int errnum, int line, const char *file, const char *func)
 {
+  char *err, *line_num;
   size_t len;
-  char *err;
-  char *line_num;
   unsigned int byte_count;
 
   const char *header_part1 = "ERROR: line: ";
@@ -118,39 +117,46 @@ print_error_msg(int errnum, int line, const char *file, const char *func)
   free(line_num);
 }
 
+// Note base 10 is a special case because it is the only case that does not
+// take the N's complement, and it includes the '-' in the count of characters.
+const static size_t complemnt_digit_count[] = {
+   0,  0, 32, 20, 16, 14, 12, 12, 11, 10,
+  -1,  9,  9,  9,  9,  8,  8,  8,  8,  8,
+   8,  8,  7,  7,  7,  7,  7,  7,  7,  7,
+   7,  7,  7,  7,  7,  7,  6};
+
 size_t
 charcnta(int i, int base)
 {
   int tmp;
-  short digit_cnt;
+  short digit_count;
+
+  if (i < 0 && base != 10) {
+    return complemnt_digit_count[base] * sizeof(char);
+  }
 
   tmp = i;
-  digit_cnt = (i != 0) ? 0 : 1;
+  digit_count = (i != 0) ? 0 : 1;
   do {
     tmp /= base;
-    ++digit_cnt;
+    ++digit_count;
   } while(tmp);
 
-  return digit_cnt * sizeof(char);
+  if (i < 0) {
+    ++digit_count;
+  }
+
+  return digit_count * sizeof(char);
 }
 
 char *
 ip_itoa(int i, char *str, int base)
 {
-  char digit;
-  char max_char;
-  char complement_char;
-  int tmp;
+  char digit, complement_char;
+  int carry_bit, tmp;
   size_t index;
-  size_t max_digits;
-  int carry_bit;
 
-  const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
-  max_digits = charcnta(INT_MIN, base);
-
-  max_char = digits[base - 1];
   index = charcnta(i, base);
-
   str[--index] = '\0';
 
   tmp = i;
@@ -160,7 +166,9 @@ ip_itoa(int i, char *str, int base)
     tmp /= 10;
   } while (tmp != 0);
 
-  if (i < 0) {
+  // For all bases other then base 10 we convert it to the n's complement.
+  if (i < 0 && base != 10) {
+  } else if (i < 0) {
     str[--index] = '-';
   }
 
@@ -168,16 +176,76 @@ ip_itoa(int i, char *str, int base)
 }
 
 char *
+ncomp(char *i, int base)
+{
+  char curr_char;
+  int max_char_index, complement_index, curr_index, carry, index;
+  size_t len;
+
+  const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+  max_char_index = base - 1;
+
+  len = strlen(i);
+
+  // To prevent modifying invalid data do a check first.
+  for (index = 0; index < len; ++index) {
+    if (i[index] >= '0' && i[index] <= '9') {
+      curr_index = i[index] - '0';
+    } else if (i[index] >= 'a' && i[index] <= 'z') {
+      curr_index = 10 + i[index] - 'a';
+    } else {
+      return NULL;
+    }
+
+    if (curr_index > max_char_index) {
+      return NULL;
+    }
+  }
+
+  // Calculate the (n - 1)'s complement.
+  for (index = 0; index < len; ++index) {
+    if (i[index] >= '0' && i[index] <= '9') {
+      curr_index = i[index] - '0';
+    } else if (i[index] >= 'a' && i[index] <= 'z') {
+      curr_index = 10 + i[index] - 'a';
+    }
+
+    complement_index = max_char_index - curr_index;
+    char curr_char = digits[complement_index];
+    i[index] = curr_char;
+  }
+
+  // Now add 1, note we drop the carry bit on the most significant digit.
+  carry = 1; // We start at 1 because we want to add one initially.
+  for (index = len - 1; index >= 0; --index) {
+    if (i[index] >= '0' && i[index] <= '9') {
+      curr_index = i[index] - '0';
+    } else if (i[index] >= 'a' && i[index] <= 'z') {
+      curr_index = 10 + i[index] - 'a';
+    }
+
+    if (curr_index + carry >= base) { // We have to carry
+      i[index] = '0';
+      carry = 1;
+    } else {
+      i[index] = digits[curr_index + carry];
+      carry = 0;
+    }
+  }
+
+  return i;
+}
+
+char *
 get_exe_path()
 {
-  size_t len;
-  size_t bytes;
+  size_t len, bytes;
+  char *pidstr, *argv_0;
   char path[PATH_MAX];
   char dest[PATH_MAX];
-  pid_t pid;
-  char *pidstr;
-  char *argv_0;
   int byte_count;
+  pid_t pid;
 
   pid = getpid();
   byte_count = charcnta(pid, 10);

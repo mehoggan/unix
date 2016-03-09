@@ -93,6 +93,22 @@ size_t charcnta(int i, int base);
 char *ip_itoa(int i, char *str, int base);
 
 /**
+* @brief Convert i to its n's complement.
+*
+* @param i The number in base b to be converted to its n`s complement.
+* Expected to be null terminated.
+* @param base Numerical base used to represesnt the value as a string, between
+* 2 and 36, where 10 means decimal base, 16 hexidecimal, 8 octal, and 2 binary
+*
+* @note If any character in i is greater than or equal to base then i will
+* not be modified.
+*
+* @return Returns NULL string on failure, or the value pointed to by i on
+* on success.
+*/
+char *ncomp(char *i, int base);
+
+/**
 * @brief Used to get the path of the current executable. This is accomplished
 * by reading the symlink for /proc/getpid()/exe.
 *

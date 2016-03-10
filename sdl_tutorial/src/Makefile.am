@@ -1,7 +1,8 @@
 lib_LTLIBRARIES = libsdl_tutorial.la
 libsdl_tutorial_la_SOURCES = \
 	jump_table.h jump_table.c \
-	opengl_core.h opengl_core.c
+	opengl_core.h opengl_core.c \
+	my_dynap.c
 
 bin_PROGRAMS = main
 main_SOURCES = main.c

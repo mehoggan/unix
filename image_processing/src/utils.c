@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <fenv.h>
+#include <limits.h>
 #include <linux/limits.h>
 #include <math.h>
 #include <stdlib.h>
@@ -34,104 +35,226 @@
 #include "utils.h"
 
 void
-print_error_msg_and_exit(int errnum)
+print_error_msg_and_exit(int errnum, int line, const char *file,
+  const char *func)
 {
-  size_t len;
-  char *err;
-
-  err = strerror(errnum);
-  len = strlen(err);
-  if (write(STDERR_FILENO, err, len) == -1) {
-    exit(EXIT_FAILURE);
-  }
-  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
-    exit(EXIT_FAILURE);
-  }
+  print_error_msg(errnum, line, file, func);
   exit(EXIT_FAILURE);
 }
 
 void
-print_error_msg(int errnum)
+print_error_msg(int errnum, int line, const char *file, const char *func)
 {
+  char *err, *line_num;
   size_t len;
-  char *err = strerror(errnum);
+  unsigned int byte_count;
 
+  const char *header_part1 = "ERROR: line: ";
+  len = strlen(header_part1);
+  if (write(STDERR_FILENO, header_part1, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  byte_count = charcnta(line, 10);
+  errno = 0;
+  line_num = malloc(byte_count + 1 * sizeof(char));
+  if (!line_num || errno) {
+    exit(EXIT_FAILURE);
+  }
+  line_num = ip_itoa(line, line_num, 10);
+  len = strlen(line_num);
+  if (write(STDERR_FILENO, line_num, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  const char *header_part2 = " file: ";
+  len = strlen(header_part2);
+  if (write(STDERR_FILENO, header_part2, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  len = strlen(file);
+  if (write(STDERR_FILENO, file, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  const char *header_part3 = " function: ";
+  len = strlen(header_part3);
+  if (write(STDERR_FILENO, header_part3, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  len = strlen(func);
+  if (write(STDERR_FILENO, func, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  const char *header_part4 = "\n\t";
+  len = strlen(header_part4);
+  if (write(STDERR_FILENO, header_part4, len) == -1) {
+    free(line_num);
+    exit(EXIT_FAILURE);
+  }
+
+  err = strerror(errnum);
   len = strlen(err) + sizeof(char);
   if (write(STDERR_FILENO, err, len) == -1) {
+    free(line_num);
     exit(EXIT_FAILURE);
   }
+
   if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
+    free(line_num);
     exit(EXIT_FAILURE);
   }
+
+  free(line_num);
+}
+
+// Note base 10 is a special case because it is the only case that does not
+// take the N's complement, and it includes the '-' in the count of characters.
+const static size_t complemnt_digit_count[] = {
+   0,  0, 32, 20, 16, 14, 12, 12, 11, 10,
+  -1,  9,  9,  9,  9,  8,  8,  8,  8,  8,
+   8,  8,  7,  7,  7,  7,  7,  7,  7,  7,
+   7,  7,  7,  7,  7,  7,  6};
+
+size_t
+charcnta(int i, int base)
+{
+  int tmp;
+  short digit_count;
+
+  if (i < 0 && base != 10) {
+    return complemnt_digit_count[base] * sizeof(char);
+  }
+
+  tmp = i;
+  digit_count = (i != 0) ? 0 : 1;
+  while (tmp) {
+    tmp /= base;
+    ++digit_count;
+  };
+
+  if (i < 0) {
+    ++digit_count;
+  }
+
+  return digit_count * sizeof(char);
 }
 
 char *
-itoa(int i)
+ip_itoa(int i, char *str, int base)
 {
-  short digit_cnt;
-  short index;
-  void *ret;
-  char digit;
+  char digit, complement_char;
+  int carry_bit, tmp;
+  size_t index;
 
-  errno = 0;
-  feclearexcept(FE_ALL_EXCEPT);
-  if (i == 0) {
-    digit_cnt = 1;
-  } else {
-    digit_cnt = floor(log10(abs(i))) + 1;
-    if (errno || fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW |
-      FE_UNDERFLOW)) {
+  index = charcnta(i, base);
+  str[index] = '\0';
+
+  tmp = i;
+  do {
+    digit = '0' + abs(tmp % base);
+    str[--index] = digit;
+    tmp /= base;
+  } while (index);
+
+  if (i < 0 && base != 10) {
+    str = ncomp(str, base);
+  } else if (i < 0) {
+    str[--index] = '-';
+  }
+
+  return str;
+}
+
+char *
+ncomp(char *i, int base)
+{
+  char curr_char;
+  int max_char_index, complement_index, curr_index, carry, index;
+  size_t len;
+
+  const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+  max_char_index = base - 1;
+
+  len = strlen(i);
+
+  // To prevent modifying invalid data do a check first.
+  for (index = 0; index < len; ++index) {
+    if (i[index] >= '0' && i[index] <= '9') {
+      curr_index = i[index] - '0';
+    } else if (i[index] >= 'a' && i[index] <= 'z') {
+      curr_index = 10 + i[index] - 'a';
+    } else {
+      return NULL;
+    }
+
+    if (curr_index > max_char_index) {
       return NULL;
     }
   }
 
-  if (i < 0) {
-    ++digit_cnt;
-  }
-  ++digit_cnt; // '\0'
+  // Calculate the (n - 1)'s complement.
+  for (index = 0; index < len; ++index) {
+    if (i[index] >= '0' && i[index] <= '9') {
+      curr_index = i[index] - '0';
+    } else if (i[index] >= 'a' && i[index] <= 'z') {
+      curr_index = 10 + i[index] - 'a';
+    }
 
-  errno = 0;
-  if ((ret = malloc(digit_cnt * sizeof(char))) == NULL || errno) {
-    print_error_msg(errno);
-    free(ret);
-    return NULL;
-  }
-
-  // This made debugging easier.
-  memset(ret, '0', digit_cnt * sizeof(char));
-
-  index = digit_cnt;
-  ((char*)ret)[--index] = '\0';
-
-  do {
-    digit = (char)((int)'0' + i % 10);
-    ((char*)ret)[--index] = digit;
-    i /= 10;
-  } while (i > 0);
-
-  if (i < 0) {
-    ((char*)ret)[--index] = '-';
+    complement_index = max_char_index - curr_index;
+    char curr_char = digits[complement_index];
+    i[index] = curr_char;
   }
 
-  return ret;
+  // Now add 1, note we drop the carry bit on the most significant digit.
+  carry = 1; // We start at 1 because we want to add one initially.
+  for (index = len - 1; index >= 0; --index) {
+    if (i[index] >= '0' && i[index] <= '9') {
+      curr_index = i[index] - '0';
+    } else if (i[index] >= 'a' && i[index] <= 'z') {
+      curr_index = 10 + i[index] - 'a';
+    }
+
+    if (curr_index + carry >= base) { // We have to carry
+      i[index] = '0';
+      carry = 1;
+    } else {
+      i[index] = digits[curr_index + carry];
+      carry = 0;
+    }
+  }
+
+  return i;
 }
 
 char *
 get_exe_path()
 {
-  size_t len;
-  size_t bytes;
+  size_t len, bytes;
+  char *pidstr, *argv_0;
   char path[PATH_MAX];
   char dest[PATH_MAX];
+  int byte_count;
   pid_t pid;
-  char *pidstr;
-  void *argv_0;
 
   pid = getpid();
-  pidstr = itoa(getpid());
-  if (!pidstr) {
+  byte_count = charcnta(pid, 10);
+  errno = 0;
+  pidstr = malloc(byte_count + 1 * sizeof(char));
+  if (!pidstr || errno) {
     return NULL;
   }
+  pidstr = ip_itoa(pid, pidstr, 10);
   strcpy(path, "/proc/");
   strcpy(path + strlen(path), pidstr);
   strcpy(path + strlen(path), "/exe");
@@ -139,24 +262,26 @@ get_exe_path()
 
   errno = 0;
   if ((len = readlink(path, dest, PATH_MAX)) == -1) {
-    print_error_msg(errno);
+    print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
     return NULL;
   }
 
   bytes = len * sizeof(char) + sizeof(char);
   errno = 0;
-  if ((argv_0 = malloc(bytes)) == NULL || errno) {
+  argv_0 = malloc(bytes);
+  if (argv_0 == NULL || errno) {
     free(argv_0);
-    print_error_msg(errno);
+    print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
     return NULL;
   }
 
-  if ((argv_0 = memcpy(argv_0, dest, bytes)) == NULL) {
+  argv_0 = memcpy(argv_0, dest, bytes);
+  if (argv_0 == NULL) {
     free(argv_0);
     return NULL;
   }
 
-  ((char*)argv_0)[len] = '\0';
+  argv_0[len] = '\0';
 
   return argv_0;
 }

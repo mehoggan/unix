@@ -36,5 +36,6 @@
 * flags.
 */
 extern int opengl_core_init(uint32_t flags);
-
+extern int init(uint32_t flags);
+#define init_REAL init
 #endif

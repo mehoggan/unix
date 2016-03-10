@@ -23,12 +23,3 @@
 */
 
 #include "opengl_core.h"
-
-int opengl_core_init(uint32_t flags)
-{
-  int ret;
-
-  ret = -1;
-
-  return ret;
-}

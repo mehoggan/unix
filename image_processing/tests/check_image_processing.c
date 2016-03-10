@@ -37,8 +37,8 @@
 
 START_TEST(check_parse_args)
 {
-  int argc;
 /*
+  int argc;
   char *dest = get_exe_path();
 
   {
@@ -723,40 +723,80 @@ START_TEST(check_itoa)
   char buff[256];
   char* test_val_str;
 
+base = 2;
+  {
+    {
+      test_val = INT_MIN;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("10000000000000000000000000000000", test_val_str);
+      test_val_str = NULL;
+    }
+
+    {
+      test_val = INT_MAX;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("1111111111111111111111111111111", test_val_str);
+      test_val_str = NULL;
+    }
+
+    {
+      test_val = -1;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("11111111111111111111111111111111", test_val_str);
+      test_val_str = NULL;
+    }
+
+    {
+      test_val = 1;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("1", test_val_str);
+      test_val_str = NULL;
+    }
+
+    {
+      test_val = -1024;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("11111111111111111111110000000000", test_val_str);
+      test_val_str = NULL;
+    }
+  }
+
   base = 10;
   {
-    test_val = 0;
-    test_val_str = ip_itoa(test_val, buff, base);
-    ck_assert_str_eq("0", test_val_str);
-    test_val_str = NULL;
-  }
+    {
+      test_val = 0;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("0", test_val_str);
+      test_val_str = NULL;
+    }
 
-  {
-    test_val = 51;
-    test_val_str = ip_itoa(test_val, buff, base);
-    ck_assert_str_eq("51", test_val_str);
-    test_val_str = NULL;
-  }
+    {
+      test_val = INT_MAX;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("2147483647", test_val_str);
+      test_val_str = NULL;
+    }
 
-  {
-    test_val = INT_MIN;
-    test_val_str = ip_itoa(test_val, buff, base);
-    ck_assert_str_eq("-2147483648", test_val_str);
-    test_val_str = NULL;
-  }
+    {
+      test_val = INT_MIN;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("-2147483648", test_val_str);
+      test_val_str = NULL;
+    }
 
-  {
-    test_val = 50;
-    test_val_str = ip_itoa(test_val, buff, base);
-    ck_assert_str_eq("50", test_val_str);
-    test_val_str = NULL;
-  }
+    {
+      test_val = 50;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("50", test_val_str);
+      test_val_str = NULL;
+    }
 
-  {
-    test_val = -50;
-    test_val_str = ip_itoa(test_val, buff, base);
-    ck_assert_str_eq("-50", test_val_str);
-    test_val_str = NULL;
+    {
+      test_val = -50;
+      test_val_str = ip_itoa(test_val, buff, base);
+      ck_assert_str_eq("-50", test_val_str);
+      test_val_str = NULL;
+    }
   }
 }
 END_TEST

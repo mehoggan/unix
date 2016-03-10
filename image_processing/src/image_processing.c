@@ -135,7 +135,6 @@ handle_version_option()
 int // -1 on failure
 handle_file_option(const char *optarg)
 {
-  size_t len;
   int fd;
 
   if (!optarg || strcmp(optarg, "") == 0) {
@@ -157,9 +156,7 @@ int // -1 on failure
 handle_directory_option(const char *optarg)
 {
   int status;
-  size_t len;
   DIR *dirp;
-  struct dirent *dir_s;
   struct stat buf;
 
   if (!optarg || strcmp(optarg, "") == 0) {
@@ -232,7 +229,7 @@ handle_output_option(const char *optarg)
   if (optarg && strcmp(optarg, "") != 0) {
     errno = 0;
     len = strlen(optarg) + sizeof(char);
-    status = write(STDOUT_FILENO, optarg, strlen(optarg) + sizeof(char));
+    status = write(STDOUT_FILENO, optarg, len);
     if (status == -1) {
       print_error_msg(errno, __LINE__, __FILE__, __FUNCTION__);
       exit(EXIT_FAILURE);
@@ -254,11 +251,6 @@ argparse(int argc, char *argv[])
 {
   int status;
   int opt;
-  size_t byte_count;
-
-  char *input_file_name;
-  char *input_dir_name;
-  char *output_file_name;
 
   if (argc <= 1) {
     handle_help_option();

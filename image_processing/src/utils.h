@@ -25,7 +25,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <stdint.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 namespace image_processing { extern "C" {
@@ -80,22 +80,6 @@ void print_error_msg(int errnum, int line, const char *file,
 size_t charcnta(int i, int base);
 
 /**
-* @brief Converts in integer value to a null-terminated string using the
-* specified base and stores the results in the array given by the str
-* parameter.
-*
-* @param i The integer to be converted.
-* @param str Should be an array long enough to contain any possible value
-* sizeof(int) * 8 + 1 for radix = 2, i.e. 17 bytyes in 16 bit platforms and 33
-* on 32 bit platforms.
-* @param base Numerical base used to represesnt the value as a string, between
-* 2 and 36, where 10 means decimal base, 16 hexidecimal, 8 octal, and 2 binary.
-*
-* @return A pointer to the null-terminated string, same as parameter str.
-*/
-char *ip_itoa(int i, char *str, int base);
-
-/**
 * @brief Convert i to its n's complement.
 *
 * @param i The number in base b to be converted to its n`s complement.
@@ -110,6 +94,23 @@ char *ip_itoa(int i, char *str, int base);
 * on success.
 */
 char *ncomp(char *i, int base);
+
+/**
+* @brief Converts in integer value to a null-terminated string using the
+* specified base and stores the results in the array given by the str
+* parameter.
+*
+* @param i The integer to be converted.
+* @param str Should be an array long enough to contain any possible value
+* sizeof(int) * 8 + 1 for radix = 2, i.e. 17 bytyes in 16 bit platforms and 33
+* on 32 bit platforms.
+* @param base Numerical base used to represesnt the value as a string, between
+* 2 and 36, where 10 means decimal base, 16 hexidecimal, 8 octal, and 2
+* binary.
+*
+* @return A pointer to the null-terminated string, same as parameter str.
+*/
+char *ip_itoa(int i, char *str, int base);
 
 /**
 * @brief Used to get the path of the current executable. This is accomplished

@@ -49,6 +49,7 @@ print_error_msg(int errnum, int line, const char *file, const char *func)
   size_t len;
   unsigned int byte_count;
 
+  line_num = NULL;
   const char *header_part1 = "ERROR: line: ";
   len = strlen(header_part1);
   if (write(STDERR_FILENO, header_part1, len) == -1) {
@@ -58,7 +59,7 @@ print_error_msg(int errnum, int line, const char *file, const char *func)
 
   byte_count = charcnta(line, 10);
   errno = 0;
-  line_num = malloc(byte_count + 1 * sizeof(char));
+  line_num = malloc(byte_count + 1);
   if (!line_num || errno) {
     exit(EXIT_FAILURE);
   }
@@ -103,13 +104,13 @@ print_error_msg(int errnum, int line, const char *file, const char *func)
   }
 
   err = strerror(errnum);
-  len = strlen(err) + sizeof(char);
+  len = strlen(err) + 1;
   if (write(STDERR_FILENO, err, len) == -1) {
     free(line_num);
     exit(EXIT_FAILURE);
   }
 
-  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
+  if (write(STDERR_FILENO, "\n", strlen("\n") + 1) == -1) {
     free(line_num);
     exit(EXIT_FAILURE);
   }
@@ -118,12 +119,14 @@ print_error_msg(int errnum, int line, const char *file, const char *func)
 }
 
 // Note base 10 is a special case because it is the only case that does not
-// take the N's complement, and it includes the '-' in the count of characters.
-const static size_t complemnt_digit_count[] = {
+// take the N's complement, and it includes the '-' in the count of
+// characters.
+static const size_t complemnt_digit_count[] = {
    0,  0, 32, 20, 16, 14, 12, 12, 11, 10,
   -1,  9,  9,  9,  9,  8,  8,  8,  8,  8,
    8,  8,  7,  7,  7,  7,  7,  7,  7,  7,
-   7,  7,  7,  7,  7,  7,  6};
+   7,  7,  7,  7,  7,  7,  6
+};
 
 size_t
 charcnta(int i, int base)
@@ -132,7 +135,7 @@ charcnta(int i, int base)
   short digit_count;
 
   if (i < 0 && base != 10) {
-    return complemnt_digit_count[base] * sizeof(char);
+    return complemnt_digit_count[base];
   }
 
   tmp = i;
@@ -140,47 +143,20 @@ charcnta(int i, int base)
   while (tmp) {
     tmp /= base;
     ++digit_count;
-  };
+  }
 
   if (i < 0) {
     ++digit_count;
   }
 
-  return digit_count * sizeof(char);
-}
-
-char *
-ip_itoa(int i, char *str, int base)
-{
-  char digit, complement_char;
-  int carry_bit, tmp;
-  size_t index;
-
-  index = charcnta(i, base);
-  str[index] = '\0';
-
-  tmp = i;
-  do {
-    digit = '0' + abs(tmp % base);
-    str[--index] = digit;
-    tmp /= base;
-  } while (index);
-
-  if (i < 0 && base != 10) {
-    str = ncomp(str, base);
-  } else if (i < 0) {
-    str[--index] = '-';
-  }
-
-  return str;
+  return digit_count;
 }
 
 char *
 ncomp(char *i, int base)
 {
-  char curr_char;
-  int max_char_index, complement_index, curr_index, carry, index;
-  size_t len;
+  int max_char_index, complement_index, curr_index, carry;
+  size_t len, index;
 
   const char *digits = "0123456789abcdefghijklmnopqrstuvwxyz";
 
@@ -218,7 +194,7 @@ ncomp(char *i, int base)
 
   // Now add 1, note we drop the carry bit on the most significant digit.
   carry = 1; // We start at 1 because we want to add one initially.
-  for (index = len - 1; index >= 0; --index) {
+  for (index = len - 1; index != (size_t)(~0ull); --index) {
     if (i[index] >= '0' && i[index] <= '9') {
       curr_index = i[index] - '0';
     } else if (i[index] >= 'a' && i[index] <= 'z') {
@@ -238,6 +214,33 @@ ncomp(char *i, int base)
 }
 
 char *
+ip_itoa(int i, char *str, int base)
+{
+  char digit;
+  int tmp;
+  size_t index;
+
+  index = charcnta(i, base);
+  memset(str, '0', index);
+  str[index] = '\0';
+
+  tmp = i;
+  do {
+    digit = '0' + abs(tmp % base);
+    str[--index] = digit;
+    tmp /= base;
+  } while (tmp);
+
+  if (i < 0 && base != 10) {
+    str = ncomp(str, base);
+  } else if (i < 0) {
+    str[--index] = '-';
+  }
+
+  return str;
+}
+
+char *
 get_exe_path()
 {
   size_t len, bytes;
@@ -250,7 +253,7 @@ get_exe_path()
   pid = getpid();
   byte_count = charcnta(pid, 10);
   errno = 0;
-  pidstr = malloc(byte_count + 1 * sizeof(char));
+  pidstr = malloc(byte_count + 1);
   if (!pidstr || errno) {
     return NULL;
   }
@@ -266,7 +269,7 @@ get_exe_path()
     return NULL;
   }
 
-  bytes = len * sizeof(char) + sizeof(char);
+  bytes = len + 1;
   errno = 0;
   argv_0 = malloc(bytes);
   if (argv_0 == NULL || errno) {

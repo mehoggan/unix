@@ -104,13 +104,13 @@ print_error_msg(int errnum, int line, const char *file, const char *func)
   }
 
   err = strerror(errnum);
-  len = strlen(err) + 1;
+  len = strlen(err) + sizeof(char);
   if (write(STDERR_FILENO, err, len) == -1) {
     free(line_num);
     exit(EXIT_FAILURE);
   }
 
-  if (write(STDERR_FILENO, "\n", strlen("\n") + 1) == -1) {
+  if (write(STDERR_FILENO, "\n", strlen("\n") + sizeof(char)) == -1) {
     free(line_num);
     exit(EXIT_FAILURE);
   }

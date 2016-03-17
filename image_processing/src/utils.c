@@ -118,7 +118,8 @@ print_error_msg(int errnum, int line, const char *file, const char *func)
 }
 
 // Note base 10 is a special case because it is the only case that does not
-// take the N's complement, and it includes the '-' in the count of characters.
+// take the N's complement, and it includes the '-' in the count of
+// characters.
 const static size_t complemnt_digit_count[] = {
    0,  0, 32, 20, 16, 14, 12, 12, 11, 10,
   -1,  9,  9,  9,  9,  8,  8,  8,  8,  8,
@@ -157,6 +158,7 @@ ip_itoa(int i, char *str, int base)
   size_t index;
 
   index = charcnta(i, base);
+  memset(str, '0', sizeof(char) * index);
   str[index] = '\0';
 
   tmp = i;
@@ -164,7 +166,7 @@ ip_itoa(int i, char *str, int base)
     digit = '0' + abs(tmp % base);
     str[--index] = digit;
     tmp /= base;
-  } while (index);
+  } while (tmp);
 
   if (i < 0 && base != 10) {
     str = ncomp(str, base);

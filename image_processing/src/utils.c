@@ -22,11 +22,13 @@
   IN THE SOFTWARE.
 */
 
+#include <assert.h>
 #include <errno.h>
 #include <fenv.h>
 #include <limits.h>
 #include <linux/limits.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -153,8 +155,12 @@ charcnta(int i, int base)
 }
 
 char *
+compress_ncomp(char *i);
+
+char *
 ncomp(char *i, int base)
 {
+  char curr_char;
   int max_char_index, complement_index, curr_index, carry;
   size_t len, index;
 
@@ -164,13 +170,16 @@ ncomp(char *i, int base)
 
   len = strlen(i);
 
-  // To prevent modifying invalid data do a check first.
-  for (index = 0; index < len; ++index) {
-    if (i[index] >= '0' && i[index] <= '9') {
-      curr_index = i[index] - '0';
-    } else if (i[index] >= 'a' && i[index] <= 'z') {
-      curr_index = 10 + i[index] - 'a';
+  // Do not contaminate the original data.
+  for (index = len - 1; index != (size_t)(~0ull); --index) {
+    curr_char = i[index];
+
+    if (curr_char >= '0' && curr_char <= '9') {
+      curr_index = curr_char - '0';
+    } else if (curr_char >= 'a' && curr_char <= 'z') {
+      curr_index = 10 + curr_char - 'a';
     } else {
+      curr_index = -1;
       return NULL;
     }
 
@@ -179,39 +188,56 @@ ncomp(char *i, int base)
     }
   }
 
-  // Calculate the (n - 1)'s complement.
-  for (index = 0; index < len; ++index) {
-    if (i[index] >= '0' && i[index] <= '9') {
-      curr_index = i[index] - '0';
-    } else if (i[index] >= 'a' && i[index] <= 'z') {
-      curr_index = 10 + i[index] - 'a';
+  // Actual algorithm
+  carry = 1;
+  for (index = len - 1; index != (size_t)(~0ull); --index) {
+    curr_char = i[index];
+
+    if (curr_char >= '0' && curr_char <= '9') {
+      curr_index = curr_char - '0';
+    } else if (curr_char >= 'a' && curr_char <= 'z') {
+      curr_index = 10 + curr_char - 'a';
     }
 
     complement_index = max_char_index - curr_index;
-    char curr_char = digits[complement_index];
+    curr_char = digits[complement_index];
     i[index] = curr_char;
-  }
 
-  // Now add 1, note we drop the carry bit on the most significant digit.
-  carry = 1; // We start at 1 because we want to add one initially.
-  for (index = len - 1; index != (size_t)(~0ull); --index) {
-    if (i[index] >= '0' && i[index] <= '9') {
-      curr_index = i[index] - '0';
-    } else if (i[index] >= 'a' && i[index] <= 'z') {
-      curr_index = 10 + i[index] - 'a';
-    }
-
-    if (curr_index + carry >= base) { // We have to carry
+    // At the same time to calculating the (N-1) complement we add 1.
+    if (complement_index + carry >= base) { // We have to carry
       i[index] = '0';
       carry = 1;
     } else {
-      i[index] = digits[curr_index + carry];
+      i[index] = digits[complement_index + carry];
       carry = 0;
     }
   }
 
   return i;
 }
+
+/*
+static
+char *
+compress_ncomp(char *i)
+{
+  size_t len, index, chars_to_copy;
+
+  len = strlen(i);
+
+  for (index = 0; index < len; ++index) {
+    if (i[index] != '0' || index == len - 1) {
+      break;
+    }
+  }
+
+  // +1 for '\0'
+  chars_to_copy = len - index + 1;
+  memcpy(i, (i + (len - chars_to_copy + 1)), chars_to_copy);
+
+  return i;
+}
+*/
 
 char *
 ip_itoa(int i, char *str, int base)
